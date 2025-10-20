@@ -49,15 +49,16 @@ model Item_Order {
 }
 
 model Product {
-  id          Int          @id @default(autoincrement())
-  name        String
-  description String
-  price       Float
-  category    Category     @relation(fields: [categoryId], references: [id])
-  categoryId  Int
-  created_at  DateTime     @default(now())
-  updated_at  DateTime     @updatedAt
-  Item_Order  Item_Order[]
+  id           Int            @id @default(autoincrement())
+  name         String
+  description  String
+  price        Float
+  category     Category       @relation(fields: [categoryId], references: [id])
+  categoryId   Int
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+  Item_Order   Item_Order[]
+  Item_Product Item_Product[]
 }
 
 model Category {
@@ -66,6 +67,23 @@ model Category {
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
   Product    Product[]
+}
+
+model Item_Product {
+  id           Int        @id @default(autoincrement())
+  product      Product    @relation(fields: [productId], references: [id])
+  productId    Int
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  ingredientId Int
+}
+
+model Ingredient {
+  id               Int            @id @default(autoincrement())
+  name             String
+  quantity_general Float
+  created_at       DateTime       @default(now())
+  updated_at       DateTime       @updatedAt
+  Item_Product     Item_Product[]
 }
 
 enum TipoUser {
