@@ -27,11 +27,21 @@ model User {
 }
 
 model Orders {
-  id           Int          @id @default(autoincrement())
-  user         User         @relation(fields: [userId], references: [id])
-  userId       Int          @unique
-  data_pedido  DateTime     @default(now())
+  id           Int           @id @default(autoincrement())
+  user         User          @relation(fields: [userId], references: [id])
+  userId       Int           @unique
+  data_pedido  DateTime      @default(now())
   status_order status_order
+  total_amount Float
+  Item_Pedido  Item_Pedido[]
+}
+
+model Item_Order {
+  id        Int    @id @default(autoincrement())
+  order     Orders @relation(fields: [orderId], references: [id])
+  orderId   Int
+  productId Int
+  quantity  Int
 }
 
 enum TipoUser {
