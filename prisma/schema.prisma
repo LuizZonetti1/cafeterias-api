@@ -15,14 +15,23 @@ datasource db {
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  name  String
-  email String  @unique
-  tipo_user TipoUser
-  password String
+  id          Int         @id @default(autoincrement())
+  name        String
+  email       String      @unique
+  tipo_user   TipoUser
+  password    String
   status_user status_user
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt 
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+  Orders      Orders?
+}
+
+model Orders {
+  id           Int          @id @default(autoincrement())
+  user         User         @relation(fields: [userId], references: [id])
+  userId       Int          @unique
+  data_pedido  DateTime     @default(now())
+  status_order status_order
 }
 
 enum TipoUser {
@@ -34,4 +43,11 @@ enum TipoUser {
 enum status_user {
   ACTIVE
   INACTIVE
+}
+
+enum status_order {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
