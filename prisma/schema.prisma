@@ -14,4 +14,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id    Int     @id @default(autoincrement())
+  name  String
+  email String  @unique
+  tipo_user TipoUser
+  password String
+  status_user status_user
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt 
+}
 
+enum TipoUser {
+  ADMIN
+  WAITER
+  KITCHEN
+}
+
+enum status_user {
+  ACTIVE
+  INACTIVE
+}
