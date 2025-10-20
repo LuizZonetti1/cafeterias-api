@@ -14,6 +14,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// tabela usuarios
 model User {
   id             Int              @id @default(autoincrement())
   name           String
@@ -27,6 +28,7 @@ model User {
   Stock_Movement Stock_Movement[]
 }
 
+// tabela pedidos
 model Orders {
   id           Int          @id @default(autoincrement())
   user         User         @relation(fields: [userId], references: [id])
@@ -37,6 +39,7 @@ model Orders {
   Item_Order Item_Order[]
 }
 
+// tabela itens do pedido
 model Item_Order {
   id         Int      @id @default(autoincrement())
   order      Orders   @relation(fields: [orderId], references: [id])
@@ -49,6 +52,7 @@ model Item_Order {
   updated_at DateTime @updatedAt
 }
 
+// tabela produtos
 model Product {
   id           Int            @id @default(autoincrement())
   name         String
@@ -62,6 +66,7 @@ model Product {
   Item_Product Item_Product[]
 }
 
+// tabela categorias
 model Category {
   id         Int       @id @default(autoincrement())
   name       String    @unique
@@ -70,6 +75,7 @@ model Category {
   Product    Product[]
 }
 
+// tabela ingredientes dos produtos
 model Item_Product {
   id           Int        @id @default(autoincrement())
   product      Product    @relation(fields: [productId], references: [id])
@@ -78,6 +84,7 @@ model Item_Product {
   ingredientId Int
 }
 
+// tabela ingredientes
 model Ingredient {
   id               Int            @id @default(autoincrement())
   name             String
@@ -89,6 +96,7 @@ model Ingredient {
   Waste            Waste[]
 }
 
+// tabela estoque
 model Stock {
   id               Int        @id @default(autoincrement())
   ingredient       Ingredient @relation(fields: [ingredientId], references: [id])
@@ -97,6 +105,7 @@ model Stock {
   updated_at       DateTime   @updatedAt
 }
 
+// tabela movimentação de estoque
 model Stock_Movement {
   id      Int   @id @default(autoincrement())
   waste   Waste @relation(fields: [wasteId], references: [id])
@@ -105,6 +114,8 @@ model Stock_Movement {
   userId  Int
 }
 
+
+// tabela desperdicio de ingredientes
 model Waste {
   id             Int              @id @default(autoincrement())
   ingredient     Ingredient       @relation(fields: [ingredientId], references: [id])
@@ -116,17 +127,21 @@ model Waste {
   Stock_Movement Stock_Movement[]
 }
 
+// enums
+// tabela tipos de usuario
 enum TipoUser {
   ADMIN
   WAITER
   KITCHEN
 }
 
+// tabela status do usuario
 enum status_user {
   ACTIVE
   INACTIVE
 }
 
+// tabela status do pedido
 enum status_order {
   PENDING
   IN_PROGRESS
