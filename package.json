@@ -2,6 +2,7 @@
   "name": "cafeterias-api",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
@@ -10,6 +11,10 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "db:seed": "node prisma/seed.js",
+    "db:reset": "prisma migrate reset",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -23,6 +28,7 @@
     "nodemon": "^3.1.10"
   },
   "devDependencies": {
+    "eslint": "^9.38.0",
     "prisma": "^6.17.1"
   }
 }
