@@ -22,10 +22,13 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^6.17.1",
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "nodemon": "^3.1.10"
+    "jsonwebtoken": "^9.0.2",
+    "nodemon": "^3.1.10",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "eslint": "^9.38.0",
