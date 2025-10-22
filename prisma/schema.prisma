@@ -26,25 +26,28 @@ model Restaurant {
   isActive    Boolean  @default(true)
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
-  users       User[] // Usuários do restaurante
-  categories  Category[] // Categorias do restaurante
-  products    Product[] // Produtos do restaurante
-  ingredients Ingredient[] // Ingredientes do restaurante
-  orders      Orders[] // Pedidos do restaurante
+
+  // Relacionamentos
+  users         User[] // Usuários do restaurante
+  categories    Category[] // Categorias do restaurante
+  products      Product[] // Produtos do restaurante
+  ingredients   Ingredient[] // Ingredientes do restaurante
+  orders        Orders[] // Pedidos do restaurante
+  notifications Notification[] // Notificações do restaurante
 
   @@map("restaurants")
 }
 
 // tabela usuarios
 model User {
-  id          Int         @id @default(autoincrement())
-  name        String
-  email       String      @unique
-  tipo_user   TipoUser
-  password    String
-  status_user status_user
-  created_at  DateTime    @default(now())
-  updated_at  DateTime    @updatedAt
+  id           Int         @id @default(autoincrement())
+  name         String
+  email        String      @unique
+  tipo_user    TipoUser
+  password     String
+  status_user  status_user
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
   restaurantId Int? // Opcional para DEVELOPER
   restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
 
@@ -60,7 +63,7 @@ model Orders {
   data_pedido  DateTime     @default(now())
   status_order status_order
   restaurantId Int
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id])
 
   Item_Order Item_Order[]
 }
@@ -114,68 +117,89 @@ model Category {
   @@unique([name, restaurantId])
 }
 
-// tabela ingredientes dos produtos
+// tabela ingredientes dos produtos (RECEITAS COMPLETAS)
 model Item_Product {
   id           Int        @id @default(autoincrement())
   product      Product    @relation(fields: [productId], references: [id])
   productId    Int
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
   ingredientId Int
+  quantity     Float // Quantidade EXATA necessária na receita
+  unit         Unit // Unidade (GRAMAS, LITROS, UNIDADES)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Evitar duplicação: mesmo ingrediente para mesmo produto
+  @@unique([productId, ingredientId])
 }
 
 // tabela ingredientes
 model Ingredient {
-  id               Int    @id @default(autoincrement())
-  name             String
-  quantity_general Float // Estoque máximo
-  quantity_minimum Float  @default(10) // Estoque mínimo (alerta)
-  unit             String @default("kg") // Unidade (kg, litros, unidades)
+  id   Int    @id @default(autoincrement())
+  name String
+  unit Unit   @default(GRAMAS) // Unidade padrão
 
   restaurantId Int
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
 
-  created_at   DateTime       @default(now())
-  updated_at   DateTime       @updatedAt
-  Item_Product Item_Product[]
-  Stock        Stock[]
-  Waste        Waste[]
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+  Item_Product   Item_Product[]
+  Stock          Stock[] // Controle de estoque
+  Stock_Movement Stock_Movement[]
+  Notifications  Notification[]
+
+  // Nome único por restaurante
+  @@unique([name, restaurantId])
 }
 
-// tabela estoque
+// tabela controle de estoque atual
 model Stock {
   id               Int        @id @default(autoincrement())
   ingredient       Ingredient @relation(fields: [ingredientId], references: [id])
-  ingredientId     Int
-  quantity_current Float
+  ingredientId     Int        @unique // Um registro por ingrediente
+  quantity_current Float      @default(0) // Estoque atual
+  quantity_minimum Float      @default(50) // Estoque mínimo (definido pelo ADMIN)
+  last_updated_by  Int // ID do usuário que fez a última atualização
   updated_at       DateTime   @updatedAt
 }
 
-// tabela movimentação de estoque
+// tabela movimentação de estoque (ENTRADA E SAÍDA)
 model Stock_Movement {
-  id      Int   @id @default(autoincrement())
-  waste   Waste @relation(fields: [wasteId], references: [id])
-  wasteId Int
-  user    User  @relation(fields: [userId], references: [id])
-  userId  Int
+  id           Int          @id @default(autoincrement())
+  ingredient   Ingredient   @relation(fields: [ingredientId], references: [id])
+  ingredientId Int
+  user         User         @relation(fields: [userId], references: [id])
+  userId       Int
+  type         MovementType // ENTRADA, SAIDA_RECEITA, SAIDA_PERDA
+  quantity     Float // Quantidade movimentada
+  reason       String? // Motivo da movimentação
+  waste_reason WasteReason? // Motivo específico para perdas
+
+  created_at DateTime @default(now())
 }
 
-// tabela desperdicio de ingredientes
-model Waste {
-  id             Int              @id @default(autoincrement())
-  ingredient     Ingredient       @relation(fields: [ingredientId], references: [id])
-  ingredientId   Int
-  quantity       Float
-  data           DateTime         @default(now())
-  created_at     DateTime         @default(now())
-  updated_at     DateTime         @updatedAt
-  Stock_Movement Stock_Movement[]
+// tabela notificações de estoque baixo
+model Notification {
+  id           Int              @id @default(autoincrement())
+  ingredient   Ingredient       @relation(fields: [ingredientId], references: [id])
+  ingredientId Int
+  type         NotificationType @default(LOW_STOCK)
+  message      String // "Estoque baixo: Farinha (10g restantes)"
+  is_read      Boolean          @default(false)
+
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  created_at DateTime @default(now())
 }
 
 // enums
 // tabela tipos de usuario
 enum TipoUser {
   DEVELOPER // Pode cadastrar restaurantes
-  ADMIN // Gerencia restaurante específico
+  ADMIN // Gerencia restaurante específico (ADICIONA estoque)
   WAITER // Acesso aos produtos/cardápio
   KITCHEN // Remove estoque (perdas/preparo)
 }
@@ -192,4 +216,33 @@ enum status_order {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+// unidades de medida padronizadas
+enum Unit {
+  GRAMAS // Para sólidos (farinha, açúcar, etc.)
+  LITROS // Para líquidos (leite, óleo, etc.)
+  UNIDADES // Para itens contáveis (ovos, tomates, etc.)
+  MILILITROS // Para pequenas quantidades líquidas
+}
+
+// tipos de movimentação de estoque
+enum MovementType {
+  ENTRADA // ADMIN adiciona ingredientes
+  SAIDA_RECEITA // KITCHEN finaliza receita (desconto automático)
+  SAIDA_PERDA // ADMIN/KITCHEN reporta perda
+}
+
+// motivos de perda de ingredientes
+enum WasteReason {
+  VENCIMENTO // Produto venceu
+  DETERIORACAO // Produto estragou
+  DESPERDICIO // Erro no preparo
+  OUTROS // Outros motivos
+}
+
+// tipos de notificação
+enum NotificationType {
+  LOW_STOCK // Estoque baixo
+  OUT_OF_STOCK // Estoque zerado
 }
