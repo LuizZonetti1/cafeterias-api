@@ -14,16 +14,40 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ===== TABELA RESTAURANTE =====
+model Restaurant {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  address     String
+  phone       String?
+  email       String?
+  logo_url    String? // URL da logo/imagem
+  isActive    Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  users       User[] // Usuários do restaurante
+  categories  Category[] // Categorias do restaurante
+  products    Product[] // Produtos do restaurante
+  ingredients Ingredient[] // Ingredientes do restaurante
+  orders      Orders[] // Pedidos do restaurante
+
+  @@map("restaurants")
+}
+
 // tabela usuarios
 model User {
-  id             Int              @id @default(autoincrement())
-  name           String
-  email          String           @unique
-  tipo_user      TipoUser
-  password       String
-  status_user    status_user
-  created_at     DateTime         @default(now())
-  updated_at     DateTime         @updatedAt
+  id          Int         @id @default(autoincrement())
+  name        String
+  email       String      @unique
+  tipo_user   TipoUser
+  password    String
+  status_user status_user
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+  restaurantId Int? // Opcional para DEVELOPER
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+
   Orders         Orders?
   Stock_Movement Stock_Movement[]
 }
@@ -35,6 +59,8 @@ model Orders {
   userId       Int          @unique
   data_pedido  DateTime     @default(now())
   status_order status_order
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
 
   Item_Order Item_Order[]
 }
@@ -54,12 +80,17 @@ model Item_Order {
 
 // tabela produtos
 model Product {
-  id           Int            @id @default(autoincrement())
-  name         String
-  description  String
-  price        Float
-  category     Category       @relation(fields: [categoryId], references: [id])
-  categoryId   Int
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String
+  price       Float
+  image_url   String? // URL da imagem do produto
+  category    Category @relation(fields: [categoryId], references: [id])
+  categoryId  Int
+
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
   created_at   DateTime       @default(now())
   updated_at   DateTime       @updatedAt
   Item_Order   Item_Order[]
@@ -68,11 +99,19 @@ model Product {
 
 // tabela categorias
 model Category {
-  id         Int       @id @default(autoincrement())
-  name       String    @unique
+  id        Int     @id @default(autoincrement())
+  name      String
+  image_url String? // URL da imagem da categoria
+
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
   Product    Product[]
+
+  // Único por restaurante
+  @@unique([name, restaurantId])
 }
 
 // tabela ingredientes dos produtos
@@ -86,14 +125,20 @@ model Item_Product {
 
 // tabela ingredientes
 model Ingredient {
-  id               Int            @id @default(autoincrement())
+  id               Int    @id @default(autoincrement())
   name             String
-  quantity_general Float
-  created_at       DateTime       @default(now())
-  updated_at       DateTime       @updatedAt
-  Item_Product     Item_Product[]
-  Stock            Stock[]
-  Waste            Waste[]
+  quantity_general Float // Estoque máximo
+  quantity_minimum Float  @default(10) // Estoque mínimo (alerta)
+  unit             String @default("kg") // Unidade (kg, litros, unidades)
+
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+  Item_Product Item_Product[]
+  Stock        Stock[]
+  Waste        Waste[]
 }
 
 // tabela estoque
@@ -114,7 +159,6 @@ model Stock_Movement {
   userId  Int
 }
 
-
 // tabela desperdicio de ingredientes
 model Waste {
   id             Int              @id @default(autoincrement())
@@ -130,9 +174,10 @@ model Waste {
 // enums
 // tabela tipos de usuario
 enum TipoUser {
-  ADMIN
-  WAITER
-  KITCHEN
+  DEVELOPER // Pode cadastrar restaurantes
+  ADMIN // Gerencia restaurante específico
+  WAITER // Acesso aos produtos/cardápio
+  KITCHEN // Remove estoque (perdas/preparo)
 }
 
 // tabela status do usuario
