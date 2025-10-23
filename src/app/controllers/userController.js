@@ -10,10 +10,95 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sua-chave-secreta-aqui';
 // ===== REGISTRAR USUÁRIO =====
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, tipo_user } = req.body;
+    const { name, email, password, type_user, code_developer, code_admin, restaurantId } = req.body;
+
+    console.log('📝 Dados recebidos:', { name, email, type_user, code_developer, code_admin, restaurantId });
 
     // As validações agora são feitas pelo middleware Yup
     // Os dados já chegam aqui validados e limpos
+
+    // ===== LÓGICA ESPECIAL PARA DEVELOPER =====
+    if (type_user === 'DEVELOPER') {
+      console.log('🔑 Verificando código DEVELOPER...');
+      
+      // Verificar se o código DEVELOPER está correto
+      if (code_developer !== process.env.DEVELOPER_SECRET_CODE) {
+        console.log('❌ Código DEVELOPER inválido');
+        return res.status(403).json({
+          error: 'Código DEVELOPER inválido. Acesso negado.'
+        });
+      }
+      
+      console.log('✅ Código DEVELOPER válido');
+    } 
+    // ===== LÓGICA ESPECIAL PARA ADMIN =====
+    else if (type_user === 'ADMIN') {
+      console.log('🔑 Verificando código ADMIN...');
+      
+      // Verificar se o código ADMIN está correto
+      if (code_admin !== process.env.ADMIN_SECRET_CODE) {
+        console.log('❌ Código ADMIN inválido');
+        return res.status(403).json({
+          error: 'Código ADMIN inválido. Acesso negado.'
+        });
+      }
+      
+      console.log('✅ Código ADMIN válido');
+      
+      // ADMIN também precisa de restaurante
+      if (!restaurantId) {
+        return res.status(400).json({
+          error: 'Restaurante é obrigatório para ADMIN'
+        });
+      }
+      
+      const restaurant = await prisma.restaurant.findUnique({
+        where: { id: parseInt(restaurantId) }
+      });
+      
+      if (!restaurant) {
+        return res.status(400).json({
+          error: 'Restaurante não encontrado'
+        });
+      }
+      
+      if (!restaurant.isActive) {
+        return res.status(400).json({
+          error: 'Restaurante está inativo'
+        });
+      }
+      
+      console.log('✅ Restaurante válido para ADMIN:', restaurant.name);
+    } 
+    else {
+      // ===== LÓGICA PARA USUÁRIOS NORMAIS (KITCHEN, WAITER) =====
+      console.log('👤 Verificando restaurante para usuário normal...');
+      
+      // Verificar se restaurante existe
+      if (!restaurantId) {
+        return res.status(400).json({
+          error: 'Restaurante é obrigatório para usuários normais'
+        });
+      }
+      
+      const restaurant = await prisma.restaurant.findUnique({
+        where: { id: parseInt(restaurantId) }
+      });
+      
+      if (!restaurant) {
+        return res.status(400).json({
+          error: 'Restaurante não encontrado'
+        });
+      }
+      
+      if (!restaurant.isActive) {
+        return res.status(400).json({
+          error: 'Restaurante está inativo'
+        });
+      }
+      
+      console.log('✅ Restaurante válido:', restaurant.name);
+    }
 
     // Verificar se usuário já existe
     const existingUser = await prisma.user.findUnique({
@@ -31,21 +116,34 @@ export const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Criar usuário
+    const userData = {
+      name,
+      email,
+      password: hashedPassword,
+      tipo_user: type_user || 'WAITER',
+      status_user: 'ACTIVE',
+      // DEVELOPER não tem restaurantId, usuários normais têm
+      restaurantId: type_user === 'DEVELOPER' ? null : parseInt(restaurantId)
+    };
+
+    console.log('💾 Criando usuário com dados:', { ...userData, password: '[HIDDEN]' });
+
     const newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        tipo_user: tipo_user || 'WAITER', // Padrão: WAITER
-        status_user: 'ACTIVE'
-      },
+      data: userData,
       select: {
         id: true,
         name: true,
         email: true,
         tipo_user: true,
         status_user: true,
-        created_at: true
+        restaurantId: true,
+        created_at: true,
+        restaurant: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       }
     });
 
@@ -216,7 +314,7 @@ export const getUserById = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, tipo_user, status_user } = req.body;
+    const { name, email, type_user, status_user } = req.body;
 
     // Verificar se usuário existe
     const existingUser = await prisma.user.findUnique({
@@ -248,7 +346,7 @@ export const updateUser = async (req, res) => {
       data: {
         ...(name && { name }),
         ...(email && { email }),
-        ...(tipo_user && { tipo_user }),
+        ...(type_user && { tipo_user: type_user }),
         ...(status_user && { status_user })
       },
       select: {
