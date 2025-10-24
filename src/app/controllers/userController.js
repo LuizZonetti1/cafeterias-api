@@ -12,39 +12,30 @@ export const registerUser = async (req, res) => {
   try {
     const { name, email, password, type_user, code_developer, code_admin, restaurantId } = req.body;
 
-    console.log('📝 Dados recebidos:', { name, email, type_user, code_developer, code_admin, restaurantId });
-
     // As validações agora são feitas pelo middleware Yup
     // Os dados já chegam aqui validados e limpos
 
     // ===== LÓGICA ESPECIAL PARA DEVELOPER =====
     if (type_user === 'DEVELOPER') {
-      console.log('🔑 Verificando código DEVELOPER...');
       
       // Verificar se o código DEVELOPER está correto
       if (code_developer !== process.env.DEVELOPER_SECRET_CODE) {
-        console.log('❌ Código DEVELOPER inválido');
         return res.status(403).json({
           error: 'Código DEVELOPER inválido. Acesso negado.'
         });
       }
       
-      console.log('✅ Código DEVELOPER válido');
     } 
     // ===== LÓGICA ESPECIAL PARA ADMIN =====
     else if (type_user === 'ADMIN') {
-      console.log('🔑 Verificando código ADMIN...');
       
       // Verificar se o código ADMIN está correto
       if (code_admin !== process.env.ADMIN_SECRET_CODE) {
-        console.log('❌ Código ADMIN inválido');
         return res.status(403).json({
           error: 'Código ADMIN inválido. Acesso negado.'
         });
       }
-      
-      console.log('✅ Código ADMIN válido');
-      
+            
       // ADMIN também precisa de restaurante
       if (!restaurantId) {
         return res.status(400).json({
@@ -68,11 +59,9 @@ export const registerUser = async (req, res) => {
         });
       }
       
-      console.log('✅ Restaurante válido para ADMIN:', restaurant.name);
     } 
     else {
       // ===== LÓGICA PARA USUÁRIOS NORMAIS (KITCHEN, WAITER) =====
-      console.log('👤 Verificando restaurante para usuário normal...');
       
       // Verificar se restaurante existe
       if (!restaurantId) {
@@ -97,7 +86,6 @@ export const registerUser = async (req, res) => {
         });
       }
       
-      console.log('✅ Restaurante válido:', restaurant.name);
     }
 
     // Verificar se usuário já existe
@@ -120,13 +108,12 @@ export const registerUser = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      tipo_user: type_user || 'WAITER',
+      tipo_user: type_user, 
       status_user: 'ACTIVE',
       // DEVELOPER não tem restaurantId, usuários normais têm
       restaurantId: type_user === 'DEVELOPER' ? null : parseInt(restaurantId)
     };
 
-    console.log('💾 Criando usuário com dados:', { ...userData, password: '[HIDDEN]' });
 
     const newUser = await prisma.user.create({
       data: userData,
@@ -209,12 +196,14 @@ export const loginUser = async (req, res) => {
     // Gerar JWT token
     const token = jwt.sign(
       { 
-        userId: user.id, 
+        id: user.id,
+        name: user.name,
         email: user.email,
-        tipo_user: user.tipo_user 
+        tipo_user: user.tipo_user,
+        restaurantId: user.restaurantId
       },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '7d' }
     );
 
     // Dados do usuário (sem senha)
@@ -223,14 +212,26 @@ export const loginUser = async (req, res) => {
       name: user.name,
       email: user.email,
       tipo_user: user.tipo_user,
+      restaurantId: user.restaurantId,
       status_user: user.status_user,
       created_at: user.created_at
     };
 
     res.json({
-      message: 'Login realizado com sucesso',
+      success: true,
+      message: '✅ Login realizado com sucesso!',
       user: userData,
-      token
+      token: token,
+      permissions: {
+        canCreateIngredient: user.tipo_user === 'ADMIN',
+        canAddStock: ['ADMIN', 'DEVELOPER'].includes(user.tipo_user),
+        canRegisterLoss: ['ADMIN', 'COZINHA'].includes(user.tipo_user),
+        canViewStock: true
+      },
+      instructions: {
+        howToUse: 'Copie o token acima e use no header: Authorization: Bearer [token]',
+        tokenExpires: '7 dias'
+      }
     });
 
   } catch (error) {

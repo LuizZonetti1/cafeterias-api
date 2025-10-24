@@ -25,7 +25,7 @@ export const registerUserSchema = yup.object({
   type_user: yup
     .string()
     .oneOf(['ADMIN', 'WAITER', 'KITCHEN'], 'Tipo de usuário deve ser ADMIN, WAITER ou KITCHEN')
-    .default('WAITER'),
+    .required('Tipo de usuário é obrigatório'),
     
   // Código ADMIN opcional (apenas se type_user for ADMIN)
   code_admin: yup

@@ -8,17 +8,12 @@ export const createRestaurant = async (req, res) => {
   try {
     const { name, description, address, phone, email } = req.body;
 
-    console.log('🏪 Criando restaurante:', { name, address });
-    console.log('📁 Arquivo enviado:', req.file ? req.file.filename : 'Nenhum');
-
     // ===== VERIFICAR SE IMAGEM É OBRIGATÓRIA =====
     if (!req.file) {
       return res.status(400).json({
         error: 'Logo do restaurante é obrigatória. Por favor, envie uma imagem.'
       });
     }
-
-    console.log('✅ Imagem válida recebida:', req.file.filename);
 
     // Verificar se já existe restaurante com mesmo nome
     const existingRestaurant = await prisma.restaurant.findFirst({
@@ -33,7 +28,6 @@ export const createRestaurant = async (req, res) => {
 
     // Gerar URL da logo (agora sempre haverá arquivo)
     const logo_url = `restaurants/${req.file.filename}`;
-    console.log('🖼️ Logo URL gerada:', logo_url);
 
     // Criar restaurante
     const restaurant = await prisma.restaurant.create({
@@ -54,8 +48,6 @@ export const createRestaurant = async (req, res) => {
       logo_url_full: generateImageUrl(req, logo_url)
     };
 
-    console.log('✅ Restaurante criado com logo:', restaurant.id);
-
     res.status(201).json({
       success: true,
       message: 'Restaurante criado com sucesso!',
@@ -74,7 +66,6 @@ export const createRestaurant = async (req, res) => {
 // ===== LISTAR RESTAURANTES PARA SELEÇÃO (público) =====
 export const getRestaurantsList = async (req, res) => {
   try {
-    console.log('📋 Listando restaurantes ativos...');
 
     const restaurants = await prisma.restaurant.findMany({
       where: { isActive: true },
@@ -95,8 +86,6 @@ export const getRestaurantsList = async (req, res) => {
       logo_url_full: restaurant.logo_url ? generateImageUrl(req, restaurant.logo_url) : null
     }));
 
-    console.log(`✅ ${restaurants.length} restaurantes encontrados`);
-
     res.json({
       success: true,
       restaurants: restaurantsWithFullUrls
@@ -114,8 +103,6 @@ export const getRestaurantsList = async (req, res) => {
 // ===== LISTAR TODOS OS RESTAURANTES (apenas DEVELOPER) =====
 export const getAllRestaurants = async (req, res) => {
   try {
-    console.log('📋 Listando todos os restaurantes (DEVELOPER)...');
-
     const restaurants = await prisma.restaurant.findMany({
       include: {
         _count: {
@@ -128,8 +115,6 @@ export const getAllRestaurants = async (req, res) => {
       },
       orderBy: { created_at: 'desc' }
     });
-
-    console.log(`✅ ${restaurants.length} restaurantes encontrados`);
 
     res.json({
       success: true,
@@ -149,8 +134,6 @@ export const getAllRestaurants = async (req, res) => {
 export const getRestaurantById = async (req, res) => {
   try {
     const { id } = req.params;
-
-    console.log('🔍 Buscando restaurante:', id);
 
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: parseInt(id) },
@@ -180,8 +163,6 @@ export const getRestaurantById = async (req, res) => {
       });
     }
 
-    console.log('✅ Restaurante encontrado:', restaurant.name);
-
     res.json({
       success: true,
       restaurant
@@ -201,8 +182,6 @@ export const updateRestaurant = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, address, phone, email, logo_url, isActive } = req.body;
-
-    console.log('🔄 Atualizando restaurante:', id);
 
     // Verificar se restaurante existe
     const existingRestaurant = await prisma.restaurant.findUnique({
@@ -230,8 +209,6 @@ export const updateRestaurant = async (req, res) => {
       data: updateData
     });
 
-    console.log('✅ Restaurante atualizado:', restaurant.name);
-
     res.json({
       success: true,
       message: 'Restaurante atualizado com sucesso!',
@@ -251,8 +228,6 @@ export const updateRestaurant = async (req, res) => {
 export const deleteRestaurant = async (req, res) => {
   try {
     const { id } = req.params;
-
-    console.log('🗑️ Deletando restaurante:', id);
 
     // Verificar se restaurante existe
     const existingRestaurant = await prisma.restaurant.findUnique({
@@ -290,8 +265,6 @@ export const deleteRestaurant = async (req, res) => {
     await prisma.restaurant.delete({
       where: { id: parseInt(id) }
     });
-
-    console.log('✅ Restaurante deletado com sucesso');
 
     res.json({
       success: true,

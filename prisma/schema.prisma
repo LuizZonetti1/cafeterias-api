@@ -32,6 +32,7 @@ model Restaurant {
   categories    Category[] // Categorias do restaurante
   products      Product[] // Produtos do restaurante
   ingredients   Ingredient[] // Ingredientes do restaurante
+  warehouses    Warehouse[] // Estoques/Armazéns do restaurante
   orders        Orders[] // Pedidos do restaurante
   notifications Notification[] // Notificações do restaurante
 
@@ -134,6 +135,24 @@ model Item_Product {
   @@unique([productId, ingredientId])
 }
 
+// tabela de armazéns/estoques (múltiplos estoques por restaurante)
+model Warehouse {
+  id          Int     @id @default(autoincrement())
+  name        String // "Estoque Cozinha", "Estoque Bar", "Estoque Limpeza"
+  description String? // Descrição opcional
+
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  Ingredients Ingredient[] // Ingredientes deste estoque
+
+  // Nome único por restaurante
+  @@unique([name, restaurantId])
+}
+
 // tabela ingredientes
 model Ingredient {
   id   Int    @id @default(autoincrement())
@@ -143,6 +162,9 @@ model Ingredient {
   restaurantId Int
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
 
+  warehouseId Int
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
   created_at     DateTime         @default(now())
   updated_at     DateTime         @updatedAt
   Item_Product   Item_Product[]
@@ -150,25 +172,25 @@ model Ingredient {
   Stock_Movement Stock_Movement[]
   Notifications  Notification[]
 
-  // Nome único por restaurante
-  @@unique([name, restaurantId])
+  // Nome único por estoque (warehouse)
+  @@unique([name, warehouseId])
 }
 
 // tabela controle de estoque atual
 model Stock {
   id               Int        @id @default(autoincrement())
-  ingredient       Ingredient @relation(fields: [ingredientId], references: [id])
+  ingredient       Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   ingredientId     Int        @unique // Um registro por ingrediente
   quantity_current Float      @default(0) // Estoque atual
   quantity_minimum Float      @default(50) // Estoque mínimo (definido pelo ADMIN)
-  last_updated_by  Int // ID do usuário que fez a última atualização
+  last_updated_by  Int? // ID do usuário que fez a última atualização (opcional)
   updated_at       DateTime   @updatedAt
 }
 
 // tabela movimentação de estoque (ENTRADA E SAÍDA)
 model Stock_Movement {
   id           Int          @id @default(autoincrement())
-  ingredient   Ingredient   @relation(fields: [ingredientId], references: [id])
+  ingredient   Ingredient   @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   ingredientId Int
   user         User         @relation(fields: [userId], references: [id])
   userId       Int
@@ -183,7 +205,7 @@ model Stock_Movement {
 // tabela notificações de estoque baixo
 model Notification {
   id           Int              @id @default(autoincrement())
-  ingredient   Ingredient       @relation(fields: [ingredientId], references: [id])
+  ingredient   Ingredient       @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   ingredientId Int
   type         NotificationType @default(LOW_STOCK)
   message      String // "Estoque baixo: Farinha (10g restantes)"

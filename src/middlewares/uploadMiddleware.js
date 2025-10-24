@@ -28,7 +28,6 @@ const storage = multer.diskStorage({
       uploadPath = path.join(__dirname, '../../uploads/general/');
     }
     
-    console.log('📁 Upload para:', uploadPath);
     cb(null, uploadPath);
   },
   
@@ -43,15 +42,12 @@ const storage = multer.diskStorage({
     // Exemplo: a3f2c1_1729630285_logo-empresa.jpg
     const fileName = `${randomCode}_${timestamp}_${originalName}${fileExtension}`;
     
-    console.log('📄 Nome do arquivo gerado:', fileName);
     cb(null, fileName);
   }
 });
 
 // Filtro para validar tipos de arquivo
 const fileFilter = (req, file, cb) => {
-  console.log('🔍 Validando arquivo:', file.originalname, 'Tipo:', file.mimetype);
-  
   // Tipos permitidos
   const allowedTypes = [
     'image/jpeg',
@@ -62,10 +58,8 @@ const fileFilter = (req, file, cb) => {
   ];
   
   if (allowedTypes.includes(file.mimetype)) {
-    console.log('✅ Tipo de arquivo aceito');
     cb(null, true);
   } else {
-    console.log('❌ Tipo de arquivo rejeitado');
     cb(new Error('Tipo de arquivo não permitido. Use: JPG, PNG, WEBP ou GIF'), false);
   }
 };
