@@ -121,7 +121,7 @@ model Category {
 // tabela ingredientes dos produtos (RECEITAS COMPLETAS)
 model Item_Product {
   id           Int        @id @default(autoincrement())
-  product      Product    @relation(fields: [productId], references: [id])
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId    Int
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
   ingredientId Int

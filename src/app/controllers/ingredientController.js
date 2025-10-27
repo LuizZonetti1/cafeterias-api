@@ -58,7 +58,7 @@ export const createIngredient = async (req, res) => {
                 name,
                 restaurantId: adminRestaurantId,
                 warehouseId: parseInt(warehouseId),
-                unit: unit || 'GRAMAS'
+                unit: unit 
             }
         });
 
@@ -67,7 +67,7 @@ export const createIngredient = async (req, res) => {
             data: {
                 ingredientId: ingredient.id,
                 quantity_current: 0,
-                quantity_minimum: 50,
+                quantity_minimum: 0,
                 last_updated_by: userId ? parseInt(userId) : null
             }
         });
