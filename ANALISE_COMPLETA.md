@@ -619,6 +619,420 @@ Ou usar JSON no campo `additional`:
 
 ---
 
+### 📡 WebSockets - Notificações em Tempo Real (Sprint 5)
+
+**Por quê implementar:** Atualizar tela automaticamente sem refresh, melhor UX
+
+**Quando implementar:**
+- ✅ Quando tiver múltiplos usuários simultâneos
+- ✅ Quando COZINHA precisar ver pedidos novos instantaneamente
+- ✅ Quando ADMIN precisar ver notificações em tempo real
+- ❌ NÃO é essencial para MVP com poucos usuários
+
+---
+
+#### Implementação com Socket.IO
+
+**1. Instalar dependências:**
+```bash
+npm install socket.io cors
+```
+
+**2. Configurar Socket.IO no servidor (`src/server.js`):**
+
+```javascript
+import { createServer } from 'http'
+import { Server } from 'socket.io'
+import app from './app.js'
+import { config } from './config/env.js'
+
+// Criar servidor HTTP
+const httpServer = createServer(app)
+
+// Configurar Socket.IO
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
+})
+
+// Middleware de autenticação WebSocket
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token
+  
+  if (!token) {
+    return next(new Error('Authentication error'))
+  }
+
+  try {
+    const decoded = jwt.verify(token, config.jwtSecret)
+    socket.userId = decoded.userId
+    socket.restaurantId = decoded.restaurantId
+    socket.tipoUser = decoded.tipo_user
+    next()
+  } catch (err) {
+    next(new Error('Invalid token'))
+  }
+})
+
+// Gerenciar conexões
+io.on('connection', (socket) => {
+  console.log(`✅ Cliente conectado: ${socket.id}`)
+  console.log(`   User ID: ${socket.userId}`)
+  console.log(`   Restaurant ID: ${socket.restaurantId}`)
+
+  // Cliente entra na "sala" do seu restaurante
+  socket.join(`restaurant:${socket.restaurantId}`)
+  
+  // Evento de desconexão
+  socket.on('disconnect', () => {
+    console.log(`❌ Cliente desconectado: ${socket.id}`)
+  })
+})
+
+// Tornar io disponível globalmente
+app.set('io', io)
+
+// Iniciar servidor
+httpServer.listen(config.port, () => {
+  console.log(`🚀 Servidor rodando na porta ${config.port}`)
+  console.log(`📡 WebSocket habilitado`)
+})
+```
+
+---
+
+#### Eventos WebSocket por Módulo
+
+**3. Notificações em Tempo Real:**
+
+```javascript
+// src/app/controllers/notificationController.js
+
+export const createNotification = async (ingredientData, restaurantId) => {
+  // ... código existente de criação ...
+
+  const notification = await prisma.notification.create({
+    data: {
+      ingredientId: ingredientData.id,
+      restaurantId,
+      type: ingredientData.quantity_current === 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+      message: `Estoque baixo: ${ingredientData.name} (${ingredientData.quantity_current}${ingredientData.unit} restantes)`
+    },
+    include: {
+      ingredient: true
+    }
+  })
+
+  // 🔥 EMITIR EVENTO WEBSOCKET
+  const io = req.app.get('io')
+  io.to(`restaurant:${restaurantId}`).emit('notification:created', {
+    notification,
+    timestamp: new Date()
+  })
+
+  return notification
+}
+```
+
+**4. Pedidos em Tempo Real:**
+
+```javascript
+// src/app/controllers/orderController.js
+
+export const createOrder = async (req, res) => {
+  // ... código de criação do pedido ...
+
+  const order = await prisma.orders.create({
+    data: { /* ... */ },
+    include: {
+      Item_Order: {
+        include: {
+          product: true,
+          Item_Order_Additional: {
+            include: { ingredient: true }
+          }
+        }
+      }
+    }
+  })
+
+  // 🔥 NOTIFICAR COZINHA EM TEMPO REAL
+  const io = req.app.get('io')
+  io.to(`restaurant:${restaurantId}`).emit('order:created', {
+    order,
+    timestamp: new Date(),
+    message: `Novo pedido #${order.id} criado por ${req.user.name}`
+  })
+
+  return res.status(201).json({ order })
+}
+
+export const updateOrderStatus = async (req, res) => {
+  // ... atualizar status ...
+
+  // 🔥 NOTIFICAR MUDANÇA DE STATUS
+  const io = req.app.get('io')
+  io.to(`restaurant:${restaurantId}`).emit('order:updated', {
+    orderId: order.id,
+    status: order.status_order,
+    timestamp: new Date()
+  })
+}
+
+export const completeOrder = async (req, res) => {
+  // ... finalizar pedido ...
+
+  // 🔥 NOTIFICAR CONCLUSÃO
+  const io = req.app.get('io')
+  io.to(`restaurant:${restaurantId}`).emit('order:completed', {
+    orderId: order.id,
+    stockConsumed: consumptionDetails,
+    timestamp: new Date()
+  })
+}
+```
+
+**5. Estoque em Tempo Real:**
+
+```javascript
+// src/app/controllers/stockController.js
+
+export const addStock = async (req, res) => {
+  // ... adicionar estoque ...
+
+  // 🔥 NOTIFICAR ATUALIZAÇÃO DE ESTOQUE
+  const io = req.app.get('io')
+  io.to(`restaurant:${restaurantId}`).emit('stock:updated', {
+    ingredientId: ingredient.id,
+    ingredientName: ingredient.name,
+    oldQuantity,
+    newQuantity: updatedStock.quantity_current,
+    type: 'ENTRADA',
+    timestamp: new Date()
+  })
+}
+```
+
+---
+
+#### Frontend - Como Conectar (React/Vue/Angular)
+
+**6. Cliente React com Socket.IO:**
+
+```javascript
+// src/hooks/useWebSocket.js
+import { useEffect, useState } from 'react'
+import io from 'socket.io-client'
+
+export function useWebSocket() {
+  const [socket, setSocket] = useState(null)
+  const [notifications, setNotifications] = useState([])
+  const [orders, setOrders] = useState([])
+
+  useEffect(() => {
+    // Conectar ao WebSocket
+    const token = localStorage.getItem('token')
+    
+    const newSocket = io('http://localhost:3333', {
+      auth: { token },
+      transports: ['websocket', 'polling']
+    })
+
+    // Conexão estabelecida
+    newSocket.on('connect', () => {
+      console.log('✅ WebSocket conectado')
+    })
+
+    // Ouvir notificações
+    newSocket.on('notification:created', (data) => {
+      console.log('🔔 Nova notificação:', data)
+      setNotifications(prev => [data.notification, ...prev])
+      
+      // Mostrar toast/alerta
+      showToast('Alerta de Estoque', data.notification.message, 'warning')
+    })
+
+    // Ouvir novos pedidos
+    newSocket.on('order:created', (data) => {
+      console.log('📋 Novo pedido:', data)
+      setOrders(prev => [data.order, ...prev])
+      
+      // Tocar som + notificação
+      playNotificationSound()
+      showToast('Novo Pedido', `Pedido #${data.order.id} recebido`, 'info')
+    })
+
+    // Ouvir atualização de pedido
+    newSocket.on('order:updated', (data) => {
+      setOrders(prev => 
+        prev.map(order => 
+          order.id === data.orderId 
+            ? { ...order, status_order: data.status }
+            : order
+        )
+      )
+    })
+
+    // Ouvir pedido concluído
+    newSocket.on('order:completed', (data) => {
+      setOrders(prev => 
+        prev.map(order => 
+          order.id === data.orderId 
+            ? { ...order, status_order: 'COMPLETED' }
+            : order
+        )
+      )
+      showToast('Pedido Concluído', `Pedido #${data.orderId} finalizado`, 'success')
+    })
+
+    // Ouvir atualização de estoque
+    newSocket.on('stock:updated', (data) => {
+      console.log('📦 Estoque atualizado:', data)
+      // Atualizar lista de estoque na tela
+    })
+
+    // Erro de conexão
+    newSocket.on('connect_error', (error) => {
+      console.error('❌ Erro WebSocket:', error)
+    })
+
+    setSocket(newSocket)
+
+    // Cleanup ao desmontar
+    return () => {
+      newSocket.close()
+    }
+  }, [])
+
+  return { socket, notifications, orders }
+}
+```
+
+**7. Usar no componente:**
+
+```javascript
+// src/pages/CozinhaPage.jsx
+import { useWebSocket } from '../hooks/useWebSocket'
+
+function CozinhaPage() {
+  const { orders, notifications } = useWebSocket()
+
+  return (
+    <div>
+      <h1>Pedidos Pendentes</h1>
+      
+      {/* Lista atualiza automaticamente sem refresh */}
+      {orders.filter(o => o.status_order === 'PENDING').map(order => (
+        <OrderCard key={order.id} order={order} />
+      ))}
+
+      {/* Notificações em tempo real */}
+      <NotificationBell notifications={notifications} />
+    </div>
+  )
+}
+```
+
+---
+
+#### Casos de Uso WebSocket
+
+**Cenário 1: Novo Pedido**
+```
+1. GARCOM cria pedido no celular
+   ↓
+2. Backend emite: order:created
+   ↓
+3. Tela da COZINHA atualiza INSTANTANEAMENTE
+   ↓
+4. Som de notificação toca
+   ↓
+5. COZINHA vê pedido sem dar refresh
+```
+
+**Cenário 2: Estoque Baixo**
+```
+1. COZINHA finaliza pedido
+   ↓
+2. Estoque de café cai para 50g (< 100g mínimo)
+   ↓
+3. Backend cria notificação + emite: notification:created
+   ↓
+4. Tela do ADMIN mostra alerta VERMELHO instantaneamente
+   ↓
+5. ADMIN vê sem precisar atualizar página
+```
+
+**Cenário 3: Status do Pedido**
+```
+1. COZINHA clica "Iniciar Preparo"
+   ↓
+2. Backend emite: order:updated (status: IN_PROGRESS)
+   ↓
+3. Tela do GARCOM atualiza status do pedido
+   ↓
+4. Cliente vê que pedido está sendo preparado
+```
+
+---
+
+#### Vantagens vs Desvantagens
+
+**✅ VANTAGENS:**
+- UX excepcional (atualização instantânea)
+- Reduz carga no servidor (menos polling)
+- Melhor comunicação entre setores
+- Notificações push automáticas
+- Sensação de "app moderno"
+
+**❌ DESVANTAGENS:**
+- Complexidade aumenta (10-15h implementação)
+- Requer servidor sempre ligado
+- Mais difícil de debugar
+- Conexões persistentes (mais recursos)
+- Fallback para polling se WebSocket falhar
+
+---
+
+#### Quando NÃO usar WebSocket (atual):
+
+Para equipe de 4 pessoas com 1 backend dev:
+- ❌ Poucos usuários simultâneos (polling é suficiente)
+- ❌ COZINHA pode dar refresh a cada 30s
+- ❌ Notificações podem aparecer no próximo acesso
+- ❌ Complexidade não justifica o benefício inicial
+- ❌ Foco em funcionalidades core primeiro
+
+**Alternativa simples:** Frontend faz polling a cada 15-30 segundos
+```javascript
+// Muito mais simples que WebSocket
+useEffect(() => {
+  const interval = setInterval(() => {
+    fetchOrders() // Busca pedidos novos
+  }, 15000) // A cada 15s
+
+  return () => clearInterval(interval)
+}, [])
+```
+
+---
+
+#### Quando SIM usar WebSocket (futuro):
+
+✅ Quando tiver 10+ usuários simultâneos  
+✅ Quando COZINHA reclamar de "não ver pedidos novos rapidamente"  
+✅ Quando tiver múltiplos garçons criando pedidos  
+✅ Quando ADMIN precisar monitorar estoque em tempo real  
+✅ Quando quiser oferecer experiência premium  
+
+**Recomendação:** Implemente **DEPOIS** do Sprint 4, quando sistema estiver estável e com usuários reais testando.
+
+---
+
 ## 📊 RESUMO EXECUTIVO ATUALIZADO
 
 ### Status Atual: **85% Completo** ✅

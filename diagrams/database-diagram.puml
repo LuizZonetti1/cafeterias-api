@@ -1,0 +1,290 @@
+@startuml Cafeterias API - Database Diagram
+
+!define Table(name,desc) class name as "desc" << (T,#FFAAAA) >>
+!define primary_key(x) <b><color:red>PK: x</color></b>
+!define foreign_key(x) <color:blue>FK: x</color>
+!define unique(x) <color:green>UQ: x</color>
+
+skinparam linetype ortho
+skinparam class {
+    BackgroundColor WhiteSmoke
+    BorderColor Black
+    ArrowColor Black
+}
+
+' ==================== ENTIDADES ====================
+
+class Restaurant {
+    primary_key(id: Int)
+    name: String
+    description: String?
+    address: String
+    phone: String?
+    email: String?
+    logo_url: String?
+    isActive: Boolean
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+class User {
+    primary_key(id: Int)
+    unique(email: String)
+    name: String
+    tipo_user: TipoUser
+    password: String
+    status_user: status_user
+    foreign_key(restaurantId: Int?)
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+class Warehouse {
+    primary_key(id: Int)
+    name: String
+    description: String?
+    foreign_key(restaurantId: Int)
+    created_at: DateTime
+    updated_at: DateTime
+    --
+    unique([name, restaurantId])
+}
+
+class Ingredient {
+    primary_key(id: Int)
+    name: String
+    unit: Unit
+    foreign_key(restaurantId: Int)
+    foreign_key(warehouseId: Int)
+    created_at: DateTime
+    updated_at: DateTime
+    --
+    unique([name, warehouseId])
+}
+
+class Stock {
+    primary_key(id: Int)
+    unique(foreign_key(ingredientId: Int))
+    quantity_current: Float
+    quantity_minimum: Float
+    last_updated_by: Int?
+    updated_at: DateTime
+}
+
+class Stock_Movement {
+    primary_key(id: Int)
+    foreign_key(stockId: Int)
+    quantity: Float
+    type: MovementType
+    waste_reason: WasteReason?
+    observation: String?
+    responsible_user_id: Int?
+    created_at: DateTime
+}
+
+class Category {
+    primary_key(id: Int)
+    name: String
+    image_url: String?
+    foreign_key(restaurantId: Int)
+    created_at: DateTime
+    updated_at: DateTime
+    --
+    unique([name, restaurantId])
+}
+
+class Product {
+    primary_key(id: Int)
+    name: String
+    description: String
+    price: Float
+    image_url: String?
+    foreign_key(categoryId: Int)
+    foreign_key(restaurantId: Int)
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+class Item_Product {
+    primary_key(id: Int)
+    foreign_key(productId: Int)
+    foreign_key(ingredientId: Int)
+    quantity: Float
+    unit: Unit
+    created_at: DateTime
+    updated_at: DateTime
+    --
+    unique([productId, ingredientId])
+}
+
+class Orders {
+    primary_key(id: Int)
+    foreign_key(userId: Int)
+    foreign_key(restaurantId: Int)
+    data_pedido: DateTime
+    status_order: status_order
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+class Item_Order {
+    primary_key(id: Int)
+    foreign_key(orderId: Int)
+    foreign_key(productId: Int)
+    quantity: Int
+    observations: String?
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+class Item_Order_Additional {
+    primary_key(id: Int)
+    foreign_key(itemOrderId: Int)
+    foreign_key(ingredientId: Int)
+    quantity: Float
+    unit: Unit
+    price: Float
+    created_at: DateTime
+}
+
+class Notification {
+    primary_key(id: Int)
+    foreign_key(ingredientId: Int)
+    foreign_key(restaurantId: Int)
+    type: NotificationType
+    message: String
+    is_read: Boolean
+    created_at: DateTime
+}
+
+' ==================== ENUMS ====================
+
+enum TipoUser {
+    DEVELOPER
+    ADMIN
+    GARCOM
+    COZINHA
+}
+
+enum status_user {
+    ACTIVE
+    INACTIVE
+}
+
+enum status_order {
+    PENDING
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+}
+
+enum Unit {
+    GRAMAS
+    LITROS
+    UNIDADES
+    MILILITROS
+}
+
+enum MovementType {
+    ENTRADA
+    SAIDA_RECEITA
+    SAIDA_PERDA
+    SAIDA_PEDIDO
+}
+
+enum WasteReason {
+    VENCIDO
+    DETERIORADO
+    CONTAMINADO
+    QUEBRA
+    DESPERDICIO_PREPARO
+    OUTROS
+}
+
+enum NotificationType {
+    LOW_STOCK
+    OUT_OF_STOCK
+}
+
+' ==================== RELACIONAMENTOS ====================
+
+' Restaurant Relationships (1:N)
+Restaurant "1" -- "N" User : possui >
+Restaurant "1" -- "N" Warehouse : possui >
+Restaurant "1" -- "N" Ingredient : possui >
+Restaurant "1" -- "N" Category : possui >
+Restaurant "1" -- "N" Product : possui >
+Restaurant "1" -- "N" Orders : possui >
+Restaurant "1" -- "N" Notification : possui >
+
+' Warehouse Relationships
+Warehouse "1" -- "N" Ingredient : armazena >
+
+' Ingredient Relationships
+Ingredient "1" -- "1" Stock : tem >
+Ingredient "1" -- "N" Item_Product : usado em >
+Ingredient "1" -- "N" Item_Order_Additional : usado em >
+Ingredient "1" -- "N" Notification : gera >
+
+' Stock Relationships
+Stock "1" -- "N" Stock_Movement : registra >
+
+' Category Relationships
+Category "1" -- "N" Product : agrupa >
+
+' Product Relationships
+Product "1" -- "N" Item_Product : receita >
+Product "1" -- "N" Item_Order : vendido em >
+
+' Orders Relationships
+User "1" -- "N" Orders : cria >
+Orders "1" -- "N" Item_Order : contém >
+
+' Item_Order Relationships
+Item_Order "1" -- "N" Item_Order_Additional : tem extras >
+
+' Enum Relationships
+User -- TipoUser
+User -- status_user
+Orders -- status_order
+Ingredient -- Unit
+Item_Product -- Unit
+Item_Order_Additional -- Unit
+Stock_Movement -- MovementType
+Stock_Movement -- WasteReason
+Notification -- NotificationType
+
+note right of Restaurant
+  Entidade central do sistema
+  Multi-tenant: cada restaurante
+  é completamente isolado
+end note
+
+note right of Stock
+  Criado automaticamente
+  ao cadastrar ingrediente
+  Quantidade inicial = 0
+end note
+
+note right of Stock_Movement
+  Todas as movimentações
+  são rastreadas:
+  - ENTRADA: adicionar estoque
+  - SAIDA_PEDIDO: consumo por pedido
+  - SAIDA_RECEITA: produção direta
+  - SAIDA_PERDA: desperdício
+end note
+
+note right of Item_Order_Additional
+  Ingredientes extras (adicionais)
+  solicitados pelo cliente
+  Consomem estoque e têm preço
+end note
+
+note bottom of Notification
+  Criada automaticamente quando:
+  - Estoque < Mínimo (LOW_STOCK)
+  - Estoque = 0 (OUT_OF_STOCK)
+end note
+
+@enduml

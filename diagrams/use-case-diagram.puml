@@ -1,0 +1,170 @@
+@startuml Cafeterias API - Use Case Diagram
+
+left to right direction
+skinparam actorStyle awesome
+
+' ==================== ATORES ====================
+
+actor "DEVELOPER\n(Desenvolvedor)" as DEV #FF6B6B
+actor "ADMIN\n(Gerente)" as ADMIN #4ECDC4
+actor "GARCOM\n(Atendente)" as GARCOM #95E1D3
+actor "COZINHA\n(Cozinheiro)" as COZINHA #FFE66D
+
+rectangle "Sistema Cafeterias API" {
+    
+    ' ==================== GESTÃO DE RESTAURANTES ====================
+    package "Gestão de Restaurantes" #DDDDDD {
+        usecase "Criar Restaurante" as UC1
+        usecase "Editar Restaurante" as UC2
+        usecase "Ativar/Desativar" as UC3
+        usecase "Listar Restaurantes" as UC4
+    }
+    
+    ' ==================== GESTÃO DE USUÁRIOS ====================
+    package "Gestão de Usuários" #DDDDDD {
+        usecase "Registrar Usuário" as UC5
+        usecase "Fazer Login" as UC6
+        usecase "Editar Usuário" as UC7
+        usecase "Deletar Usuário" as UC8
+    }
+    
+    ' ==================== GESTÃO DE ESTOQUE ====================
+    package "Gestão de Estoque" #E8F5E9 {
+        usecase "Criar Warehouse" as UC9
+        usecase "Cadastrar Ingrediente" as UC10
+        usecase "Adicionar Estoque" as UC11
+        usecase "Definir Estoque Mínimo" as UC12
+        usecase "Registrar Perda" as UC13
+        usecase "Visualizar Estoque" as UC14
+    }
+    
+    ' ==================== GESTÃO DE PRODUTOS ====================
+    package "Gestão de Produtos" #FFF3E0 {
+        usecase "Criar Categoria" as UC15
+        usecase "Editar Categoria" as UC16
+        usecase "Criar Produto" as UC17
+        usecase "Definir Receita" as UC18
+        usecase "Editar Produto" as UC19
+        usecase "Produzir Produto" as UC20
+    }
+    
+    ' ==================== SISTEMA DE PEDIDOS ====================
+    package "Sistema de Pedidos" #E3F2FD {
+        usecase "Criar Pedido" as UC21
+        usecase "Adicionar Extras" as UC22
+        usecase "Listar Pedidos" as UC23
+        usecase "Aceitar Pedido" as UC24
+        usecase "Finalizar Pedido" as UC25
+        usecase "Cancelar Pedido" as UC26
+    }
+    
+    ' ==================== NOTIFICAÇÕES ====================
+    package "Notificações" #FCE4EC {
+        usecase "Visualizar Notificações" as UC27
+        usecase "Marcar como Lida" as UC28
+        usecase "Deletar Notificação" as UC29
+    }
+    
+    ' ==================== SISTEMA AUTOMÁTICO ====================
+    package "Sistema Automático" #F3E5F5 {
+        usecase "Consumir Estoque\nAutomaticamente" as UC30
+        usecase "Criar Notificação\nde Estoque Baixo" as UC31
+        usecase "Registrar\nMovimentações" as UC32
+    }
+}
+
+' ==================== RELACIONAMENTOS DEVELOPER ====================
+DEV --> UC1
+DEV --> UC2
+DEV --> UC3
+DEV --> UC4
+DEV --> UC5
+
+' ==================== RELACIONAMENTOS ADMIN ====================
+ADMIN --> UC5
+ADMIN --> UC7
+ADMIN --> UC8
+ADMIN --> UC9
+ADMIN --> UC10
+ADMIN --> UC11
+ADMIN --> UC12
+ADMIN --> UC13
+ADMIN --> UC14
+ADMIN --> UC15
+ADMIN --> UC16
+ADMIN --> UC17
+ADMIN --> UC18
+ADMIN --> UC19
+ADMIN --> UC20
+ADMIN --> UC23
+ADMIN --> UC27
+ADMIN --> UC28
+ADMIN --> UC29
+
+' ==================== RELACIONAMENTOS GARCOM ====================
+GARCOM --> UC6
+GARCOM --> UC21
+GARCOM --> UC22
+GARCOM --> UC23
+GARCOM --> UC26
+
+' ==================== RELACIONAMENTOS COZINHA ====================
+COZINHA --> UC6
+COZINHA --> UC13
+COZINHA --> UC20
+COZINHA --> UC23
+COZINHA --> UC24
+COZINHA --> UC25
+
+' ==================== RELACIONAMENTOS DO SISTEMA ====================
+UC25 ..> UC30 : <<include>>
+UC30 ..> UC32 : <<include>>
+UC30 ..> UC31 : <<include>>
+UC11 ..> UC31 : <<include>>
+UC13 ..> UC31 : <<include>>
+UC20 ..> UC30 : <<include>>
+
+' ==================== EXTENSÕES ====================
+UC21 ..> UC22 : <<extend>>
+UC25 ..> UC13 : <<extend>>\n(com desperdício)
+
+' ==================== NOTAS ====================
+note right of DEV
+  Nível mais alto de acesso
+  Gerencia todo o sistema
+  Cria restaurantes e ADMINs
+end note
+
+note right of ADMIN
+  Gerencia seu restaurante
+  Controla produtos e estoque
+  Monitora operações
+end note
+
+note right of GARCOM
+  Cria pedidos dos clientes
+  Adiciona itens e extras
+  Visualiza produtos
+end note
+
+note right of COZINHA
+  Prepara pedidos
+  Finaliza com consumo de estoque
+  Registra perdas e desperdícios
+end note
+
+note bottom of UC30
+  Sistema consome estoque
+  automaticamente ao:
+  - Finalizar pedido
+  - Produzir produto
+  Valida estoque suficiente
+end note
+
+note bottom of UC31
+  Notificação automática quando:
+  - Estoque < Mínimo (LOW_STOCK)
+  - Estoque = 0 (OUT_OF_STOCK)
+end note
+
+@enduml

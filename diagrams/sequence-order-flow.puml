@@ -1,0 +1,293 @@
+@startuml Cafeterias API - Fluxo de Pedido Completo
+
+title Fluxo Completo: Criação e Finalização de Pedido
+
+actor "GARCOM" as GARCOM #95E1D3
+participant "API" as API
+participant "OrderController" as ORDER
+participant "StockController" as STOCK
+participant "NotificationController" as NOTIF
+database "PostgreSQL" as DB
+actor "COZINHA" as COZINHA #FFE66D
+
+== FASE 1: GARCOM CRIA PEDIDO ==
+
+GARCOM -> API: POST /orders\n{items: [{productId, quantity, additionals}]}
+activate API
+
+API -> ORDER: createOrder(req, res)
+activate ORDER
+
+ORDER -> ORDER: Validar autenticação\n(requireGarcom)
+
+ORDER -> ORDER: Validar produtos\npertencem ao restaurante
+
+ORDER -> DB: Buscar produtos\ne ingredientes
+activate DB
+DB --> ORDER: Produtos validados
+deactivate DB
+
+ORDER -> DB: CREATE Order\n(status: PENDING)
+activate DB
+DB --> ORDER: Order criado
+deactivate DB
+
+ORDER -> DB: CREATE Item_Order\npara cada produto
+activate DB
+DB --> ORDER: Itens criados
+deactivate DB
+
+alt Cliente pediu ingredientes extras
+    ORDER -> DB: CREATE Item_Order_Additional\npara cada adicional
+    activate DB
+    DB --> ORDER: Adicionais criados
+    deactivate DB
+end
+
+ORDER -> ORDER: Calcular preço total\n(produtos + adicionais)
+
+ORDER --> API: 201 Created\n{order, items, additionals, totalPrice}
+deactivate ORDER
+
+API --> GARCOM: Pedido criado\n(ID: #123, Status: PENDING)
+deactivate API
+
+note right of GARCOM
+  Pedido #123 criado:
+  - 2x Cappuccino
+  - 1x Latte + shot extra café
+  Total: R$ 32,00
+end note
+
+== FASE 2: COZINHA VISUALIZA E ACEITA ==
+
+COZINHA -> API: GET /orders/restaurant/1
+activate API
+
+API -> ORDER: getOrdersByRestaurant(req, res)
+activate ORDER
+
+ORDER -> DB: Buscar pedidos PENDING\ndo restaurante
+activate DB
+DB --> ORDER: Lista de pedidos
+deactivate DB
+
+ORDER --> API: 200 OK\n[{order #123, #124, #125}]
+deactivate ORDER
+
+API --> COZINHA: Pedidos pendentes
+deactivate API
+
+COZINHA -> API: PUT /orders/123/status\n{status: "IN_PROGRESS"}
+activate API
+
+API -> ORDER: updateOrderStatus(req, res)
+activate ORDER
+
+ORDER -> DB: UPDATE Order\nSET status = IN_PROGRESS
+activate DB
+DB --> ORDER: Status atualizado
+deactivate DB
+
+ORDER --> API: 200 OK
+deactivate ORDER
+
+API --> COZINHA: Pedido #123 em preparo
+deactivate API
+
+note right of COZINHA
+  COZINHA prepara os itens:
+  - Aquece leite
+  - Prepara café
+  - 5% de canela desperdiçada
+end note
+
+== FASE 3: FINALIZAR PEDIDO COM CONSUMO DE ESTOQUE ==
+
+COZINHA -> API: POST /orders/123/complete\n{wastePercentage: 5}
+activate API
+
+API -> ORDER: completeOrder(req, res)
+activate ORDER
+
+ORDER -> ORDER: Validar autenticação\n(requireCozinha)
+
+ORDER -> DB: Buscar Order completo\ncom items + additionals
+activate DB
+DB --> ORDER: Order #123 com todos os itens
+deactivate DB
+
+ORDER -> DB: Buscar receitas\nde todos os produtos
+activate DB
+DB --> ORDER: Receitas (Item_Product)
+deactivate DB
+
+ORDER -> ORDER: Calcular total de\ncada ingrediente necessário\n(receitas × quantities)
+
+note right of ORDER
+  Cálculo de consumo:
+  
+  2x Cappuccino:
+  - Café: 30g × 2 = 60g
+  - Leite: 150ml × 2 = 300ml
+  - Canela: 5g × 2 = 10g
+  
+  1x Latte + shot extra:
+  - Café: 20g + 10g (extra) = 30g
+  - Leite: 200ml
+  
+  TOTAL:
+  - Café: 90g
+  - Leite: 500ml
+  - Canela: 10g
+  
+  COM DESPERDÍCIO (5%):
+  - Café: 94.5g
+  - Leite: 525ml
+  - Canela: 10.5g
+end note
+
+' Validação de estoque
+ORDER -> DB: Verificar estoque\nsuficiente
+activate DB
+DB --> ORDER: Estoque validado ✓
+deactivate DB
+
+alt Estoque insuficiente
+    ORDER --> API: 400 Bad Request\n"Estoque insuficiente:\nCafé: precisa 94.5g, tem 50g"
+    API --> COZINHA: Erro: falta ingrediente
+    [<-- COZINHA: Adicionar estoque primeiro
+else Estoque suficiente
+    
+    ' Consumir estoque de cada ingrediente
+    loop Para cada ingrediente
+        ORDER -> STOCK: consumeStock(ingredientId, quantity)
+        activate STOCK
+        
+        STOCK -> DB: UPDATE Stock\nSET quantity_current -= quantity
+        activate DB
+        DB --> STOCK: Estoque atualizado
+        deactivate DB
+        
+        STOCK -> DB: CREATE Stock_Movement\n(type: SAIDA_PEDIDO)
+        activate DB
+        DB --> STOCK: Movimentação registrada
+        deactivate DB
+        
+        alt Houve desperdício
+            STOCK -> DB: CREATE Stock_Movement\n(type: SAIDA_PERDA)
+            activate DB
+            DB --> STOCK: Perda registrada
+            deactivate DB
+        end
+        
+        ' Verificar estoque mínimo
+        STOCK -> STOCK: Check: quantity_current < quantity_minimum?
+        
+        alt Estoque abaixo do mínimo
+            STOCK -> NOTIF: createNotification(LOW_STOCK)
+            activate NOTIF
+            
+            NOTIF -> DB: CREATE Notification\n"Estoque baixo: Café (20g restantes)"
+            activate DB
+            DB --> NOTIF: Notificação criada
+            deactivate DB
+            
+            NOTIF --> STOCK: Notificação criada
+            deactivate NOTIF
+        end
+        
+        STOCK --> ORDER: Estoque consumido ✓
+        deactivate STOCK
+    end
+    
+    ' Atualizar status do pedido
+    ORDER -> DB: UPDATE Order\nSET status = COMPLETED
+    activate DB
+    DB --> ORDER: Pedido finalizado
+    deactivate DB
+    
+    ORDER --> API: 200 OK\n{order: COMPLETED, stockConsumed: [...]}
+    deactivate ORDER
+    
+    API --> COZINHA: Pedido #123 finalizado!\nEstoque consumido
+    deactivate API
+    
+    note right of COZINHA
+      Pedido #123 concluído:
+      ✓ Estoque consumido
+      ✓ Movimentações registradas
+      ✓ Notificações criadas
+      ✓ Status: COMPLETED
+    end note
+end
+
+== FASE 4: ADMIN VISUALIZA NOTIFICAÇÕES ==
+
+actor "ADMIN" as ADMIN #4ECDC4
+
+ADMIN -> API: GET /notifications/1?unreadOnly=true
+activate API
+
+API -> NOTIF: getNotificationsByRestaurant(req, res)
+activate NOTIF
+
+NOTIF -> DB: Buscar notificações\nnão lidas do restaurante
+activate DB
+DB --> NOTIF: Lista de notificações
+deactivate DB
+
+NOTIF --> API: 200 OK\n[{LOW_STOCK: Café (20g)}]
+deactivate NOTIF
+
+API --> ADMIN: ⚠️ Alerta: Estoque baixo!
+deactivate API
+
+note right of ADMIN
+  ADMIN visualiza alerta:
+  "Café com apenas 20g
+  (mínimo: 100g)"
+  
+  Ação: Adicionar estoque
+end note
+
+ADMIN -> API: POST /stock/add/5\n{quantity: 500}
+activate API
+
+API -> STOCK: addStock(req, res)
+activate STOCK
+
+STOCK -> DB: UPDATE Stock\nSET quantity_current += 500
+activate DB
+DB --> STOCK: Estoque: 20g → 520g
+deactivate DB
+
+STOCK -> DB: CREATE Stock_Movement\n(type: ENTRADA)
+activate DB
+DB --> STOCK: Movimentação registrada
+deactivate DB
+
+STOCK --> API: 200 OK\n{stock: 520g}
+deactivate STOCK
+
+API --> ADMIN: Estoque adicionado ✓
+deactivate API
+
+ADMIN -> API: PUT /notifications/42/read
+activate API
+
+API -> NOTIF: markNotificationAsRead(req, res)
+activate NOTIF
+
+NOTIF -> DB: UPDATE Notification\nSET is_read = true
+activate DB
+DB --> NOTIF: Notificação marcada
+deactivate DB
+
+NOTIF --> API: 200 OK
+deactivate NOTIF
+
+API --> ADMIN: Notificação marcada como lida
+deactivate API
+
+@enduml

@@ -1,0 +1,106 @@
+@startuml Cafeterias API - Arquitetura do Sistema
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Arquitetura de Componentes - Cafeterias API
+
+Person(garcom, "GARCOM", "Cria pedidos")
+Person(cozinha, "COZINHA", "Finaliza pedidos")
+Person(admin, "ADMIN", "Gerencia restaurante")
+Person(dev, "DEVELOPER", "Gerencia sistema")
+
+System_Boundary(api, "Cafeterias API") {
+    
+    Container_Boundary(middlewares, "Middlewares") {
+        Component(auth, "authMiddleware", "Node.js", "Autenticação JWT\ne autorização")
+        Component(validation, "validation", "Yup", "Validação de schemas")
+        Component(errorHandler, "errorHandler", "Express", "Tratamento de erros")
+        Component(upload, "uploadMiddleware", "Multer", "Upload de arquivos")
+    }
+    
+    Container_Boundary(routes, "Routes Layer") {
+        Component(apiRoutes, "routes.js", "Express Router", "Definição de rotas")
+    }
+    
+    Container_Boundary(controllers, "Controllers") {
+        Component(userCtrl, "userController", "Node.js", "CRUD usuários")
+        Component(restaurantCtrl, "restaurantController", "Node.js", "CRUD restaurantes")
+        Component(warehouseCtrl, "warehouseController", "Node.js", "CRUD warehouses")
+        Component(ingredientCtrl, "ingredientController", "Node.js", "CRUD ingredientes")
+        Component(stockCtrl, "stockController", "Node.js", "Gestão de estoque")
+        Component(categoryCtrl, "categoryController", "Node.js", "CRUD categorias")
+        Component(productCtrl, "productController", "Node.js", "CRUD produtos")
+        Component(orderCtrl, "orderController", "Node.js", "Gestão de pedidos")
+        Component(notifCtrl, "notificationController", "Node.js", "Gestão de notificações")
+    }
+    
+    Container_Boundary(services, "Business Logic") {
+        Component(stockService, "Stock Service", "Node.js", "Lógica de consumo\ne movimentações")
+        Component(notifService, "Notification Service", "Node.js", "Criação automática\nde alertas")
+        Component(orderService, "Order Service", "Node.js", "Processamento\nde pedidos")
+    }
+    
+    Container_Boundary(data, "Data Access Layer") {
+        Component(prisma, "Prisma Client", "ORM", "Abstração do BD\nType-safe queries")
+    }
+}
+
+System_Ext(postgres, "PostgreSQL", "Banco de dados\nrelacional")
+System_Ext(fileSystem, "File System", "Armazenamento\nde imagens")
+
+' ==================== RELAÇÕES ====================
+
+' Usuários -> Middlewares
+garcom --> auth : "Autenticação"
+cozinha --> auth : "Autenticação"
+admin --> auth : "Autenticação"
+dev --> auth : "Autenticação"
+
+' Middlewares -> Routes
+auth --> apiRoutes : "Token válido"
+validation --> apiRoutes : "Dados válidos"
+upload --> apiRoutes : "Arquivo processado"
+
+' Routes -> Controllers
+apiRoutes --> userCtrl : "Dispatch"
+apiRoutes --> restaurantCtrl : "Dispatch"
+apiRoutes --> warehouseCtrl : "Dispatch"
+apiRoutes --> ingredientCtrl : "Dispatch"
+apiRoutes --> stockCtrl : "Dispatch"
+apiRoutes --> categoryCtrl : "Dispatch"
+apiRoutes --> productCtrl : "Dispatch"
+apiRoutes --> orderCtrl : "Dispatch"
+apiRoutes --> notifCtrl : "Dispatch"
+
+' Controllers -> Services
+orderCtrl --> stockService : "Consumir estoque"
+orderCtrl --> notifService : "Criar notificação"
+orderCtrl --> orderService : "Processar pedido"
+stockCtrl --> notifService : "Verificar mínimo"
+productCtrl --> stockService : "Consumir estoque"
+
+' Services -> Prisma
+stockService --> prisma : "Queries"
+notifService --> prisma : "Queries"
+orderService --> prisma : "Queries"
+
+' Controllers -> Prisma (direto)
+userCtrl --> prisma : "CRUD"
+restaurantCtrl --> prisma : "CRUD"
+warehouseCtrl --> prisma : "CRUD"
+ingredientCtrl --> prisma : "CRUD"
+categoryCtrl --> prisma : "CRUD"
+notifCtrl --> prisma : "CRUD"
+
+' Prisma -> BD
+prisma --> postgres : "SQL Queries"
+
+' Upload -> File System
+upload --> fileSystem : "Salvar arquivos"
+
+' Error Handler
+errorHandler --> apiRoutes : "Captura erros"
+
+SHOW_LEGEND()
+
+@enduml
