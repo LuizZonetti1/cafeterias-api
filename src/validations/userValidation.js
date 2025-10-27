@@ -8,25 +8,25 @@ export const registerUserSchema = yup.object({
     .min(2, 'Nome deve ter pelo menos 2 caracteres')
     .max(100, 'Nome deve ter no máximo 100 caracteres')
     .trim(),
-    
+
   email: yup
     .string()
     .required('Email é obrigatório')
     .email('Email deve ter um formato válido (exemplo: usuario@dominio.com)')
     .lowercase()
     .trim(),
-    
+
   password: yup
     .string()
     .required('Senha é obrigatória')
     .min(6, 'Senha deve ter pelo menos 6 caracteres')
     .max(50, 'Senha deve ter no máximo 50 caracteres'),
-    
+
   type_user: yup
     .string()
-    .oneOf(['ADMIN', 'WAITER', 'KITCHEN'], 'Tipo de usuário deve ser ADMIN, WAITER ou KITCHEN')
+    .oneOf(['ADMIN', 'GARCOM', 'COZINHA'], 'Tipo de usuário deve ser ADMIN, GARCOM ou COZINHA')
     .required('Tipo de usuário é obrigatório'),
-    
+
   // Código ADMIN opcional (apenas se type_user for ADMIN)
   code_admin: yup
     .string()
@@ -36,7 +36,7 @@ export const registerUserSchema = yup.object({
       otherwise: (schema) => schema.notRequired()
     })
     .trim(),
-    
+
   restaurantId: yup
     .number()
     .positive('ID do restaurante deve ser um número positivo')
@@ -52,26 +52,26 @@ export const registerDeveloperSchema = yup.object({
     .min(2, 'Nome deve ter pelo menos 2 caracteres')
     .max(100, 'Nome deve ter no máximo 100 caracteres')
     .trim(),
-    
+
   email: yup
     .string()
     .required('Email é obrigatório')
     .email('Email deve ter um formato válido (exemplo: usuario@dominio.com)')
     .lowercase()
     .trim(),
-    
+
   password: yup
     .string()
     .required('Senha é obrigatória')
     .min(6, 'Senha deve ter pelo menos 6 caracteres')
     .max(50, 'Senha deve ter no máximo 50 caracteres'),
-    
-    code_developer: yup
+
+  code_developer: yup
     .string()
     .required('Código DEVELOPER é obrigatório')
     .trim(),
-    
-    type_user: yup
+
+  type_user: yup
     .string()
     .oneOf(['DEVELOPER'], 'Tipo deve ser DEVELOPER')
     .required('Tipo de usuário é obrigatório')
@@ -85,7 +85,7 @@ export const loginUserSchema = yup.object({
     .email('Email deve ter um formato válido')
     .lowercase()
     .trim(),
-    
+
   password: yup
     .string()
     .required('Senha é obrigatória')
@@ -99,17 +99,17 @@ export const updateUserSchema = yup.object({
     .min(2, 'Nome deve ter pelo menos 2 caracteres')
     .max(100, 'Nome deve ter no máximo 100 caracteres')
     .trim(),
-    
+
   email: yup
     .string()
     .email('Email deve ter um formato válido')
     .lowercase()
     .trim(),
-    
+
   type_user: yup
     .string()
-    .oneOf(['ADMIN', 'WAITER', 'KITCHEN'], 'Tipo de usuário deve ser ADMIN, WAITER ou KITCHEN'),
-    
+    .oneOf(['ADMIN', 'GARCOM', 'COZINHA'], 'Tipo de usuário deve ser ADMIN, GARCOM ou COZINHA'),
+
   status_user: yup
     .string()
     .oneOf(['ACTIVE', 'INACTIVE'], 'Status deve ser ACTIVE ou INACTIVE')
