@@ -1,4 +1,6 @@
 import { PrismaClient } from '../../../generated/prisma/index.js';
+import { emitToRestaurant } from '../../config/socket.js';
+
 const prisma = new PrismaClient();
 
 // ===== HELPER: CRIAR NOTIFICAÇÃO AUTOMÁTICA =====
@@ -37,6 +39,14 @@ export const createNotification = async ({ ingredientId, type = 'LOW_STOCK', mes
         }
       }
     });
+
+    // 🔥 EMITIR EVENTO WEBSOCKET EM TEMPO REAL
+    emitToRestaurant(restaurantId, 'notification:created', {
+      notification,
+      message: `Nova notificação: ${notification.message}`
+    });
+
+    console.log(`🔔 Notificação criada e emitida via WebSocket: ${notification.message}`);
 
     return notification;
   } catch (error) {

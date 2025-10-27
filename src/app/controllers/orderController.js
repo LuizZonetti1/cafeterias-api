@@ -1,4 +1,5 @@
 import { PrismaClient } from '../../../generated/prisma/index.js';
+import { emitToRestaurant } from '../../config/socket.js';
 
 const prisma = new PrismaClient();
 
@@ -207,6 +208,21 @@ export const createOrder = async (req, res) => {
         }
       }
     });
+
+    // 🔥 EMITIR EVENTO WEBSOCKET - NOVO PEDIDO
+    emitToRestaurant(garcomRestaurantId, 'order:created', {
+      order: {
+        id: order.id,
+        status: order.status_order,
+        restaurant: order.restaurant.name,
+        createdBy: order.user.name,
+        itemsCount: order.Item_Order.length,
+        totalAmount
+      },
+      message: `Novo pedido #${order.id} criado por ${order.user.name}`
+    });
+
+    console.log(`📋 Pedido #${order.id} criado e emitido via WebSocket para restaurante #${garcomRestaurantId}`);
 
     res.status(201).json({
       success: true,
@@ -522,6 +538,17 @@ export const updateOrderStatus = async (req, res) => {
       }
     });
 
+    // 🔥 EMITIR EVENTO WEBSOCKET - STATUS ATUALIZADO
+    emitToRestaurant(order.restaurantId, 'order:updated', {
+      orderId: updatedOrder.id,
+      previousStatus: order.status_order,
+      newStatus: updatedOrder.status_order,
+      updatedBy: req.user.name,
+      message: `Pedido #${updatedOrder.id} → ${status}`
+    });
+
+    console.log(`🔄 Status do pedido #${updatedOrder.id} atualizado para ${status} via WebSocket`);
+
   } catch (error) {
     console.error('❌ Erro ao atualizar status do pedido:', error);
     res.status(500).json({
@@ -792,6 +819,19 @@ export const completeOrder = async (req, res) => {
       }
     });
 
+    // 🔥 EMITIR EVENTO WEBSOCKET - PEDIDO FINALIZADO
+    emitToRestaurant(order.restaurantId, 'order:completed', {
+      orderId: completedOrder.id,
+      status: completedOrder.status_order,
+      completedBy: req.user.name,
+      stockConsumed: consumptionResults.length,
+      wastePercentage,
+      warnings: stockWarnings.length,
+      message: `Pedido #${completedOrder.id} finalizado`
+    });
+
+    console.log(`✅ Pedido #${completedOrder.id} finalizado e emitido via WebSocket`);
+
     res.json({
       success: true,
       message: '✅ Pedido finalizado com sucesso! Estoque consumido automaticamente.',
@@ -870,6 +910,17 @@ export const cancelOrder = async (req, res) => {
         updated_at: new Date()
       }
     });
+
+    // 🔥 EMITIR EVENTO WEBSOCKET - PEDIDO CANCELADO
+    emitToRestaurant(order.restaurantId, 'order:cancelled', {
+      orderId: cancelledOrder.id,
+      previousStatus: order.status_order,
+      reason: reason || 'Não informado',
+      cancelledBy: req.user.name,
+      message: `Pedido #${cancelledOrder.id} cancelado`
+    });
+
+    console.log(`❌ Pedido #${cancelledOrder.id} cancelado e emitido via WebSocket`);
 
     res.json({
       success: true,
