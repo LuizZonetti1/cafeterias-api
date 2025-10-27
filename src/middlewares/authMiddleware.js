@@ -291,3 +291,44 @@ export const requireKitchenOrAdmin = async (req, res, next) => {
     });
   }
 };
+
+// ===== MIDDLEWARE PARA VERIFICAR SE É GARCOM OU ADMIN =====
+export const requireGarcomOrAdmin = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return res.status(401).json({
+        error: 'Token de acesso obrigatório. Faça login.'
+      });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    if (!['GARCOM', 'ADMIN'].includes(decoded.tipo_user)) {
+      return res.status(403).json({
+        error: 'Acesso negado: apenas GARÇOM ou ADMINISTRADOR podem realizar esta operação.',
+        requiredRoles: ['GARCOM', 'ADMIN'],
+        userRole: decoded.tipo_user
+      });
+    }
+
+    req.user = decoded;
+    req.body.userId = decoded.id;
+    req.body.userRole = decoded.tipo_user;
+
+    next();
+
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        error: 'Token expirado. Faça login novamente.'
+      });
+    }
+
+    res.status(401).json({
+      error: 'Token inválido.'
+    });
+  }
+};

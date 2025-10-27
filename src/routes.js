@@ -43,6 +43,14 @@ import {
   updateProductRecipe,
   produceProduct
 } from './app/controllers/productController.js';
+import {
+  createOrder,
+  listOrders,
+  getOrderById,
+  updateOrderStatus,
+  completeOrder,
+  cancelOrder
+} from './app/controllers/orderController.js';
 import { validateSchema } from './middlewares/validation.js';
 import {
   requireDeveloper,
@@ -50,7 +58,8 @@ import {
   requireAuth,
   requireAdmin,
   requireAdminOrDeveloper,
-  requireKitchenOrAdmin
+  requireKitchenOrAdmin,
+  requireGarcomOrAdmin
 } from './middlewares/authMiddleware.js';
 import { uploadSingleImage, handleUploadError } from './middlewares/uploadMiddleware.js';
 import {
@@ -128,9 +137,16 @@ routes.get('/', (req, res) => {
         note: 'Stock é criado automaticamente ao cadastrar ingrediente com quantidade 0',
         setMinimum: 'PUT /stock/minimum/:ingredientId (TOKEN ADMIN/DEVELOPER)',
         addStock: 'POST /stock/add/:ingredientId (TOKEN ADMIN/DEVELOPER - ENTRADA)',
-        autoConsume: 'POST /stock/consume (DEPRECIADO - use /products/:productId/produce)',
         registerLoss: 'POST /stock/loss/:ingredientId (TOKEN COZINHA/ADMIN - perda/desperdício)',
         overview: 'GET /stock/overview/:restaurantId (TOKEN JWT - qualquer usuário)'
+      },
+      orders: {
+        create: 'POST /orders/create (TOKEN GARCOM/ADMIN - criar pedido com itens)',
+        list: 'GET /orders (TOKEN JWT - listar pedidos do restaurante, filtro ?status=PENDING)',
+        getById: 'GET /orders/:orderId (TOKEN JWT - detalhes completos do pedido)',
+        updateStatus: 'PATCH /orders/:orderId/status (TOKEN COZINHA/ADMIN - atualizar status)',
+        complete: 'POST /orders/:orderId/complete (TOKEN COZINHA/ADMIN - finalizar + CONSUMIR ESTOQUE)',
+        cancel: 'DELETE /orders/:orderId/cancel (TOKEN GARCOM/ADMIN - cancelar pedido)'
       }
     },
     workflow: {
@@ -139,14 +155,17 @@ routes.get('/', (req, res) => {
       '3_add_stock': 'POST /stock/add/:ingredientId → ADMIN/DEVELOPER adiciona quantidade (soma)',
       '4_create_product': 'POST /products/create → ADMIN cria produto com receita (ingredientes + quantidades)',
       '5_update_recipe': 'PUT /products/:productId/recipe → ADMIN atualiza receita se necessário',
-      '6_produce_product': 'POST /products/:productId/produce → COZINHA/ADMIN produz (valida estoque + consome)',
-      '7_manual_loss': 'POST /stock/loss/:ingredientId → COZINHA/ADMIN registra perda manual (fora da produção)'
+      '6_create_order': 'POST /orders/create → GARCOM cria pedido com produtos (body: {items: [{productId, quantity, additional, observations}]})',
+      '7_kitchen_accept': 'PATCH /orders/:orderId/status → COZINHA aceita pedido (body: {status: "IN_PROGRESS"})',
+      '8_complete_order': 'POST /orders/:orderId/complete → COZINHA finaliza pedido (CONSOME ESTOQUE + registra desperdício opcional)',
+      '9_manual_loss': 'POST /stock/loss/:ingredientId → COZINHA/ADMIN registra perda manual (fora do pedido)',
+      '10_produce_product': 'POST /products/:productId/produce → COZINHA/ADMIN produz produto avulso (valida + consome estoque)'
     },
     permissions: {
-      'ADMIN': 'Pode: criar produtos/ingredientes, adicionar estoque, produzir, registrar perdas',
-      'DEVELOPER': 'Pode: adicionar estoque, produzir',
-      'COZINHA': 'Pode: produzir produtos, registrar perdas/desperdício',
-      'GARCOM': 'Pode: apenas visualizar'
+      'ADMIN': 'Pode: TUDO (gerenciar produtos, ingredientes, adicionar estoque, produzir, criar/finalizar pedidos, registrar perdas)',
+      'DEVELOPER': 'Pode: gerenciar restaurantes, adicionar estoque, visualizar tudo de todos os restaurantes',
+      'COZINHA': 'Pode: visualizar produtos/ingredientes/estoque, produzir produtos, ACEITAR e FINALIZAR pedidos (consome estoque), registrar perdas',
+      'GARCOM': 'Pode: visualizar produtos, CRIAR pedidos, visualizar pedidos, cancelar pedidos'
     }
   });
 });
@@ -173,21 +192,21 @@ routes.delete('/restaurants/:id', requireDeveloperToken, validateSchema(restaura
 routes.use(handleUploadError); 
 
 // ===== ROTAS CRUD DE USUÁRIOS COM VALIDAÇÃO =====
-routes.get('/users', getAllUsers);             // Listar todos
-routes.get('/users/:id', validateSchema(idParamSchema, 'params'), getUserById);         // Buscar por ID
-routes.put('/users/:id', validateSchema(idParamSchema, 'params'), validateSchema(updateUserSchema), updateUser);          // Atualizar
-routes.delete('/users/:id', validateSchema(idParamSchema, 'params'), deleteUser);       // Deletar
+routes.get('/users', requireAdminOrDeveloper, getAllUsers);             // Listar todos (ADMIN/DEVELOPER)
+routes.get('/users/:id', requireAuth, validateSchema(idParamSchema, 'params'), getUserById);         // Buscar por ID (qualquer autenticado)
+routes.put('/users/:id', requireAdminOrDeveloper, validateSchema(idParamSchema, 'params'), validateSchema(updateUserSchema), updateUser);          // Atualizar (ADMIN/DEVELOPER)
+routes.delete('/users/:id', requireAdminOrDeveloper, validateSchema(idParamSchema, 'params'), deleteUser);       // Deletar (ADMIN/DEVELOPER)
 
 // ===== ROTAS DE ESTOQUES/ARMAZÉNS =====
 routes.post('/warehouses/create', requireAdmin, createWarehouse);                                     // Criar estoque (APENAS ADMIN)
-routes.get('/warehouses/restaurant/:restaurantId', requireAdmin, getWarehousesByRestaurant);          // Listar estoques por restaurante
-routes.get('/warehouses/:warehouseId', requireAdmin, getWarehouseById);                                // Buscar estoque por ID
+routes.get('/warehouses/restaurant/:restaurantId', requireAuth, getWarehousesByRestaurant);          // Listar estoques por restaurante (qualquer autenticado)
+routes.get('/warehouses/:warehouseId', requireAuth, getWarehouseById);                                // Buscar estoque por ID (qualquer autenticado)
 routes.put('/warehouses/:warehouseId', requireAdmin, updateWarehouse);                                // Atualizar estoque (APENAS ADMIN)
 routes.delete('/warehouses/:warehouseId', requireAdmin, deleteWarehouse);                             // Deletar estoque (APENAS ADMIN)
 
 // ===== ROTAS DE INGREDIENTES =====
 routes.post('/ingredients/create', requireAdmin, createIngredient);                                   // Criar ingrediente (APENAS ADMIN + requer warehouseId)
-routes.get('/ingredients/restaurant/:restaurantId', requireAdmin, getIngredientsByRestaurant);        // Listar ingredientes por restaurante (com status do estoque)
+routes.get('/ingredients/restaurant/:restaurantId', requireAuth, getIngredientsByRestaurant);        // Listar ingredientes por restaurante (qualquer autenticado)
 routes.delete('/ingredients/:ingredientId', requireAdmin, deleteIngredient);                         // Deletar ingrediente (APENAS ADMIN)
 
 // ===== ROTAS DE PRODUTOS =====
@@ -203,8 +222,15 @@ routes.post('/products/:productId/produce', requireKitchenOrAdmin, produceProduc
 // Nota: Stock é criado automaticamente ao cadastrar ingrediente (quantidade 0)
 routes.put('/stock/minimum/:ingredientId', requireAdminOrDeveloper, setMinimumStock);                            // Definir/atualizar estoque mínimo
 routes.post('/stock/add/:ingredientId', requireAdminOrDeveloper, addStock);                                      // Adicionar estoque (ENTRADA) - APENAS ADMIN/DEVELOPER
-routes.post('/stock/consume', requireAuth, consumeStockByProduct);                                   // Consumir estoque por produto (AUTOMÁTICO - DEPRECIADO: use /products/:productId/produce)
 routes.post('/stock/loss/:ingredientId', requireKitchenOrAdmin, registerStockLoss);                            // Registrar perda/estrago - APENAS COZINHA/ADMIN
-routes.get('/stock/overview/:restaurantId', requireAdmin, getRestaurantStockOverview);               // Visão geral do estoque do restaurante
+routes.get('/stock/overview/:restaurantId', requireAuth, getRestaurantStockOverview);               // Visão geral do estoque do restaurante (qualquer autenticado)
+
+// ===== ROTAS DE PEDIDOS (ORDERS) =====
+routes.post('/orders/create', requireGarcomOrAdmin, createOrder);                                    // Criar pedido (GARCOM/ADMIN)
+routes.get('/orders', requireAuth, listOrders);                                                      // Listar pedidos do restaurante (qualquer autenticado)
+routes.get('/orders/:orderId', requireAuth, getOrderById);                                           // Buscar pedido por ID (qualquer autenticado)
+routes.patch('/orders/:orderId/status', requireKitchenOrAdmin, updateOrderStatus);                   // Atualizar status (COZINHA/ADMIN)
+routes.post('/orders/:orderId/complete', requireKitchenOrAdmin, completeOrder);                      // Finalizar pedido + CONSUMIR ESTOQUE (COZINHA/ADMIN)
+routes.delete('/orders/:orderId/cancel', requireGarcomOrAdmin, cancelOrder);                         // Cancelar pedido (GARCOM/ADMIN)
 
 export default routes;
