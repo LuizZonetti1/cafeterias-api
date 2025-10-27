@@ -44,6 +44,13 @@ import {
   produceProduct
 } from './app/controllers/productController.js';
 import {
+  createCategory,
+  getCategoriesByRestaurant,
+  getCategoryById,
+  updateCategory,
+  deleteCategory
+} from './app/controllers/categoryController.js';
+import {
   createOrder,
   listOrders,
   getOrderById,
@@ -125,13 +132,20 @@ routes.get('/', (req, res) => {
         delete: 'DELETE /ingredients/:ingredientId (TOKEN ADMIN - deleta ingrediente + estoque)'
       },
       products: {
-        create: 'POST /products/create (TOKEN ADMIN - pode incluir receita)',
+        create: 'POST /products/create (TOKEN ADMIN - pode incluir receita + UPLOAD DE IMAGEM)',
         listByRestaurant: 'GET /products/restaurant/:restaurantId (TOKEN JWT)',
         getById: 'GET /products/:productId (TOKEN JWT - retorna receita completa com estoque)',
-        update: 'PUT /products/:productId (TOKEN ADMIN)',
+        update: 'PUT /products/:productId (TOKEN ADMIN - UPLOAD DE IMAGEM)',
         delete: 'DELETE /products/:productId (TOKEN ADMIN)',
         updateRecipe: 'PUT /products/:productId/recipe (TOKEN ADMIN - atualizar ingredientes)',
         produce: 'POST /products/:productId/produce (TOKEN COZINHA/ADMIN - PRODUZIR + CONSUMIR ESTOQUE)'
+      },
+      categories: {
+        create: 'POST /categories/create (TOKEN ADMIN - UPLOAD DE IMAGEM)',
+        listByRestaurant: 'GET /categories/restaurant/:restaurantId (TOKEN JWT)',
+        getById: 'GET /categories/:categoryId (TOKEN JWT - retorna produtos da categoria)',
+        update: 'PUT /categories/:categoryId (TOKEN ADMIN - UPLOAD DE IMAGEM)',
+        delete: 'DELETE /categories/:categoryId (TOKEN ADMIN - só se não tiver produtos)'
       },
       stock: {
         note: 'Stock é criado automaticamente ao cadastrar ingrediente com quantidade 0',
@@ -189,7 +203,7 @@ routes.put('/restaurants/:id', requireDeveloperToken, validateSchema(restaurantI
 routes.delete('/restaurants/:id', requireDeveloperToken, validateSchema(restaurantIdParamSchema, 'params'), deleteRestaurant); // Deletar (DEVELOPER JWT)
 
 // ===== MIDDLEWARE DE TRATAMENTO DE ERROS DE UPLOAD =====
-routes.use(handleUploadError); 
+routes.use(handleUploadError);
 
 // ===== ROTAS CRUD DE USUÁRIOS COM VALIDAÇÃO =====
 routes.get('/users', requireAdminOrDeveloper, getAllUsers);             // Listar todos (ADMIN/DEVELOPER)
@@ -209,11 +223,18 @@ routes.post('/ingredients/create', requireAdmin, createIngredient);             
 routes.get('/ingredients/restaurant/:restaurantId', requireAuth, getIngredientsByRestaurant);        // Listar ingredientes por restaurante (qualquer autenticado)
 routes.delete('/ingredients/:ingredientId', requireAdmin, deleteIngredient);                         // Deletar ingrediente (APENAS ADMIN)
 
+// ===== ROTAS DE CATEGORIAS =====
+routes.post('/categories/create', requireAdmin, uploadSingleImage('image'), createCategory);         // Criar categoria (ADMIN + UPLOAD DE IMAGEM)
+routes.get('/categories/restaurant/:restaurantId', requireAuth, getCategoriesByRestaurant);          // Listar categorias por restaurante
+routes.get('/categories/:categoryId', requireAuth, getCategoryById);                                 // Buscar categoria por ID (com produtos)
+routes.put('/categories/:categoryId', requireAdmin, uploadSingleImage('image'), updateCategory);     // Atualizar categoria (ADMIN + UPLOAD DE IMAGEM)
+routes.delete('/categories/:categoryId', requireAdmin, deleteCategory);                              // Deletar categoria (ADMIN - só se não tiver produtos)
+
 // ===== ROTAS DE PRODUTOS =====
-routes.post('/products/create', requireAdmin, createProduct);                                         // Criar produto com receita (APENAS ADMIN)
+routes.post('/products/create', requireAdmin, uploadSingleImage('image'), createProduct);            // Criar produto (ADMIN + receita + UPLOAD DE IMAGEM)
 routes.get('/products/restaurant/:restaurantId', requireAuth, getProductsByRestaurant);               // Listar produtos por restaurante
 routes.get('/products/:productId', requireAuth, getProductById);                                      // Buscar produto por ID (com receita e estoque)
-routes.put('/products/:productId', requireAdmin, updateProduct);                                      // Atualizar produto (APENAS ADMIN)
+routes.put('/products/:productId', requireAdmin, uploadSingleImage('image'), updateProduct);         // Atualizar produto (ADMIN + UPLOAD DE IMAGEM)
 routes.delete('/products/:productId', requireAdmin, deleteProduct);                                   // Deletar produto (APENAS ADMIN)
 routes.put('/products/:productId/recipe', requireAdmin, updateProductRecipe);                         // Atualizar receita do produto (APENAS ADMIN)
 routes.post('/products/:productId/produce', requireKitchenOrAdmin, produceProduct);                   // Produzir produto (COZINHA/ADMIN) - CONSOME ESTOQUE AUTOMATICAMENTE

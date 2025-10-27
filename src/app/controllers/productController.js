@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 // ===== CRIAR PRODUTO COM RECEITA (APENAS ADMIN) =====
 export const createProduct = async (req, res) => {
     try {
-        const { name, description, price, categoryId, image_url, recipe } = req.body;
+        const { name, description, price, categoryId, recipe } = req.body;
         const adminRestaurantId = req.user?.restaurantId;
         const userRole = req.user?.tipo_user;
 
@@ -14,6 +14,14 @@ export const createProduct = async (req, res) => {
             return res.status(400).json({
                 error: 'Nome, preço e categoria são obrigatórios'
             });
+        }
+
+        // Processar imagem se houver upload
+        let imageUrl = null;
+        if (req.file) {
+            const protocol = req.protocol;
+            const host = req.get('host');
+            imageUrl = `${protocol}://${host}/uploads/products/${req.file.filename}`;
         }
 
         // Verificar se categoria existe e pertence ao restaurante
@@ -91,7 +99,7 @@ export const createProduct = async (req, res) => {
                 name,
                 description: description || '',
                 price: parseFloat(price),
-                image_url: image_url || null,
+                image_url: imageUrl,
                 categoryId: parseInt(categoryId),
                 restaurantId: adminRestaurantId,
                 // Criar receita junto com o produto (se fornecida)
@@ -292,7 +300,7 @@ export const getProductById = async (req, res) => {
 export const updateProduct = async (req, res) => {
     try {
         const { productId } = req.params;
-        const { name, description, price, categoryId, image_url } = req.body;
+        const { name, description, price, categoryId } = req.body;
         const adminRestaurantId = req.user?.restaurantId;
 
         // Verificar se produto existe e pertence ao restaurante do ADMIN
@@ -331,6 +339,14 @@ export const updateProduct = async (req, res) => {
             }
         }
 
+        // Processar nova imagem se houver upload
+        let imageUrl = existingProduct.image_url;
+        if (req.file) {
+            const protocol = req.protocol;
+            const host = req.get('host');
+            imageUrl = `${protocol}://${host}/uploads/products/${req.file.filename}`;
+        }
+
         // Atualizar produto
         const updatedProduct = await prisma.product.update({
             where: { id: parseInt(productId) },
@@ -339,7 +355,7 @@ export const updateProduct = async (req, res) => {
                 description: description !== undefined ? description : existingProduct.description,
                 price: price ? parseFloat(price) : existingProduct.price,
                 categoryId: categoryId ? parseInt(categoryId) : existingProduct.categoryId,
-                image_url: image_url !== undefined ? image_url : existingProduct.image_url,
+                image_url: imageUrl,
                 updated_at: new Date()
             },
             include: {
