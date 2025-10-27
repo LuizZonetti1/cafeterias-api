@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 // ===== CRIAR PEDIDO (GARCOM OU ADMIN) =====
 export const createOrder = async (req, res) => {
     try {
-        const { items } = req.body; // items = [{ productId, quantity, additional, observations }]
+        const { items } = req.body; // items = [{ productId, quantity, additional, observations, additionalIngredients: [{ingredientId, quantity, unit, price}] }]
         const garcomId = req.user?.id;
         const garcomRestaurantId = req.user?.restaurantId;
         const userRole = req.user?.tipo_user;
@@ -28,7 +28,15 @@ export const createOrder = async (req, res) => {
                             productId: 1,
                             quantity: 2,
                             additional: 'Sem cebola',
-                            observations: 'Cliente alérgico'
+                            observations: 'Cliente alérgico',
+                            additionalIngredients: [ // ← NOVO: ingredientes extras
+                                {
+                                    ingredientId: 5,
+                                    quantity: 50,
+                                    unit: 'GRAMAS',
+                                    price: 2.50
+                                }
+                            ]
                         }
                     ]
                 }
@@ -42,6 +50,25 @@ export const createOrder = async (req, res) => {
                     error: 'Cada item deve ter productId e quantity válidos',
                     invalidItem: item
                 });
+            }
+
+            // Validar adicionais se houver
+            if (item.additionalIngredients && Array.isArray(item.additionalIngredients)) {
+                for (const additional of item.additionalIngredients) {
+                    if (!additional.ingredientId || !additional.quantity || additional.quantity <= 0) {
+                        return res.status(400).json({
+                            error: 'Cada adicional deve ter ingredientId e quantity válidos',
+                            invalidAdditional: additional
+                        });
+                    }
+                    if (!additional.unit || !['GRAMAS', 'LITROS', 'UNIDADES', 'MILILITROS'].includes(additional.unit)) {
+                        return res.status(400).json({
+                            error: 'Unidade inválida para adicional',
+                            validUnits: ['GRAMAS', 'LITROS', 'UNIDADES', 'MILILITROS'],
+                            invalidAdditional: additional
+                        });
+                    }
+                }
             }
         }
 
@@ -72,21 +99,59 @@ export const createOrder = async (req, res) => {
             });
         }
 
-        // Calcular valor total do pedido
+        // Verificar ingredientes adicionais (se houver)
+        const allAdditionalIngredientIds = [];
+        items.forEach(item => {
+            if (item.additionalIngredients && Array.isArray(item.additionalIngredients)) {
+                item.additionalIngredients.forEach(additional => {
+                    allAdditionalIngredientIds.push(parseInt(additional.ingredientId));
+                });
+            }
+        });
+
+        if (allAdditionalIngredientIds.length > 0) {
+            const ingredients = await prisma.ingredient.findMany({
+                where: {
+                    id: { in: allAdditionalIngredientIds },
+                    restaurantId: garcomRestaurantId
+                }
+            });
+
+            if (ingredients.length !== allAdditionalIngredientIds.length) {
+                return res.status(404).json({
+                    error: 'Um ou mais ingredientes adicionais não foram encontrados ou não pertencem ao seu restaurante'
+                });
+            }
+        }
+
+        // Calcular valor total do pedido (produtos + adicionais)
         let totalAmount = 0;
         const itemsWithPrice = items.map(item => {
             const product = products.find(p => p.id === parseInt(item.productId));
             const itemTotal = product.price * item.quantity;
-            totalAmount += itemTotal;
+
+            // Calcular total dos adicionais
+            let additionalsTotal = 0;
+            if (item.additionalIngredients && Array.isArray(item.additionalIngredients)) {
+                additionalsTotal = item.additionalIngredients.reduce((sum, additional) => {
+                    return sum + (parseFloat(additional.price) || 0);
+                }, 0);
+            }
+
+            const itemTotalWithAdditionals = itemTotal + additionalsTotal;
+            totalAmount += itemTotalWithAdditionals;
+
             return {
                 ...item,
                 productName: product.name,
                 unitPrice: product.price,
-                itemTotal
+                itemTotal,
+                additionalsTotal,
+                itemTotalWithAdditionals
             };
         });
 
-        // Criar pedido
+        // Criar pedido com adicionais
         const order = await prisma.orders.create({
             data: {
                 userId: garcomId,
@@ -97,7 +162,16 @@ export const createOrder = async (req, res) => {
                         productId: parseInt(item.productId),
                         quantity: parseInt(item.quantity),
                         additional: item.additional || null,
-                        observations: item.observations || null
+                        observations: item.observations || null,
+                        // Criar adicionais se houver
+                        Item_Order_Additional: item.additionalIngredients && item.additionalIngredients.length > 0 ? {
+                            create: item.additionalIngredients.map(additional => ({
+                                ingredientId: parseInt(additional.ingredientId),
+                                quantity: parseFloat(additional.quantity),
+                                unit: additional.unit,
+                                price: parseFloat(additional.price) || 0
+                            }))
+                        } : undefined
                     }))
                 }
             },
@@ -110,6 +184,17 @@ export const createOrder = async (req, res) => {
                                 name: true,
                                 price: true,
                                 category: { select: { name: true } }
+                            }
+                        },
+                        Item_Order_Additional: {
+                            include: {
+                                ingredient: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        unit: true
+                                    }
+                                }
                             }
                         }
                     }
@@ -141,7 +226,14 @@ export const createOrder = async (req, res) => {
                     unitPrice: item.product.price,
                     total: item.product.price * item.quantity,
                     additional: item.additional,
-                    observations: item.observations
+                    observations: item.observations,
+                    additionalIngredients: item.Item_Order_Additional.map(additional => ({
+                        ingredient: additional.ingredient.name,
+                        quantity: additional.quantity,
+                        unit: additional.unit,
+                        price: additional.price
+                    })),
+                    additionalsTotal: item.Item_Order_Additional.reduce((sum, add) => sum + add.price, 0)
                 })),
                 totalAmount,
                 createdAt: order.created_at
@@ -191,6 +283,11 @@ export const listOrders = async (req, res) => {
                                 name: true,
                                 price: true
                             }
+                        },
+                        Item_Order_Additional: {
+                            select: {
+                                price: true
+                            }
                         }
                     }
                 },
@@ -201,10 +298,12 @@ export const listOrders = async (req, res) => {
             orderBy: { created_at: 'desc' }
         });
 
-        // Calcular totais
+        // Calcular totais (produtos + adicionais)
         const ordersWithTotals = orders.map(order => {
             const totalAmount = order.Item_Order.reduce((sum, item) => {
-                return sum + (item.product.price * item.quantity);
+                const productTotal = item.product.price * item.quantity;
+                const additionalsTotal = item.Item_Order_Additional.reduce((addSum, add) => addSum + add.price, 0);
+                return sum + productTotal + additionalsTotal;
             }, 0);
 
             return {
@@ -266,6 +365,17 @@ export const getOrderById = async (req, res) => {
                                 price: true,
                                 category: { select: { name: true } }
                             }
+                        },
+                        Item_Order_Additional: {
+                            include: {
+                                ingredient: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        unit: true
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -292,9 +402,11 @@ export const getOrderById = async (req, res) => {
             });
         }
 
-        // Calcular total
+        // Calcular total (produtos + adicionais)
         const totalAmount = order.Item_Order.reduce((sum, item) => {
-            return sum + (item.product.price * item.quantity);
+            const productTotal = item.product.price * item.quantity;
+            const additionalsTotal = item.Item_Order_Additional.reduce((addSum, add) => addSum + add.price, 0);
+            return sum + productTotal + additionalsTotal;
         }, 0);
 
         res.json({
@@ -308,19 +420,34 @@ export const getOrderById = async (req, res) => {
                     name: order.user.name,
                     role: order.user.tipo_user
                 },
-                items: order.Item_Order.map(item => ({
-                    id: item.id,
-                    product: {
-                        id: item.product.id,
-                        name: item.product.name,
-                        category: item.product.category.name
-                    },
-                    quantity: item.quantity,
-                    unitPrice: item.product.price,
-                    subtotal: item.product.price * item.quantity,
-                    additional: item.additional,
-                    observations: item.observations
-                })),
+                items: order.Item_Order.map(item => {
+                    const additionalsTotal = item.Item_Order_Additional.reduce((sum, add) => sum + add.price, 0);
+                    return {
+                        id: item.id,
+                        product: {
+                            id: item.product.id,
+                            name: item.product.name,
+                            category: item.product.category.name
+                        },
+                        quantity: item.quantity,
+                        unitPrice: item.product.price,
+                        subtotal: item.product.price * item.quantity,
+                        additional: item.additional, // legacy text field
+                        observations: item.observations,
+                        additionalIngredients: item.Item_Order_Additional.map(add => ({
+                            id: add.id,
+                            ingredient: {
+                                id: add.ingredient.id,
+                                name: add.ingredient.name,
+                                unit: add.ingredient.unit
+                            },
+                            quantity: add.quantity,
+                            unit: add.unit,
+                            price: add.price
+                        })),
+                        additionalsTotal
+                    };
+                }),
                 totalAmount,
                 createdAt: order.created_at,
                 updatedAt: order.updated_at
@@ -419,7 +546,7 @@ export const completeOrder = async (req, res) => {
             });
         }
 
-        // Buscar pedido completo com receitas
+        // Buscar pedido completo com receitas e adicionais
         const order = await prisma.orders.findUnique({
             where: { id: parseInt(orderId) },
             include: {
@@ -435,6 +562,15 @@ export const completeOrder = async (req, res) => {
                                                 Stock: true
                                             }
                                         }
+                                    }
+                                }
+                            }
+                        },
+                        Item_Order_Additional: {
+                            include: {
+                                ingredient: {
+                                    include: {
+                                        Stock: true
                                     }
                                 }
                             }
@@ -471,12 +607,13 @@ export const completeOrder = async (req, res) => {
             });
         }
 
-        // Consolidar necessidades de ingredientes
+        // Consolidar necessidades de ingredientes (receitas + adicionais)
         const ingredientNeeds = new Map(); // ingredientId -> { stock, totalNeeded, details }
 
         for (const orderItem of order.Item_Order) {
             const product = orderItem.product;
 
+            // Processar ingredientes da receita
             if (!product.Item_Product || product.Item_Product.length === 0) {
                 return res.status(400).json({
                     error: `Produto "${product.name}" não possui receita cadastrada`,
@@ -511,7 +648,42 @@ export const completeOrder = async (req, res) => {
                 need.details.push({
                     product: product.name,
                     quantity: orderItem.quantity,
-                    needed: quantityNeeded
+                    needed: quantityNeeded,
+                    source: 'receita'
+                });
+            }
+
+            // Processar ingredientes adicionais
+            for (const additional of orderItem.Item_Order_Additional) {
+                const ingredient = additional.ingredient;
+                const stock = ingredient.Stock[0];
+
+                if (!stock) {
+                    return res.status(400).json({
+                        error: `Estoque não encontrado para adicional: ${ingredient.name}`,
+                        action: 'Configure o estoque do ingrediente adicional'
+                    });
+                }
+
+                const quantityNeeded = additional.quantity;
+
+                if (!ingredientNeeds.has(ingredient.id)) {
+                    ingredientNeeds.set(ingredient.id, {
+                        ingredient,
+                        stock,
+                        totalNeeded: 0,
+                        details: []
+                    });
+                }
+
+                const need = ingredientNeeds.get(ingredient.id);
+                need.totalNeeded += quantityNeeded;
+                need.details.push({
+                    product: product.name,
+                    quantity: 1,
+                    needed: quantityNeeded,
+                    source: 'adicional',
+                    price: additional.price
                 });
             }
         }

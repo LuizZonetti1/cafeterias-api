@@ -58,16 +58,29 @@ model Orders {
 }
 
 model Item_Order {
-  id           Int      @id @default(autoincrement())
-  orderId      Int
-  productId    Int
-  quantity     Int
-  additional   String?
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  observations String?
-  order        Orders   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product      Product  @relation(fields: [productId], references: [id])
+  id                    Int                     @id @default(autoincrement())
+  orderId               Int
+  productId             Int
+  quantity              Int
+  additional            String?
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
+  observations          String?
+  order                 Orders                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product               Product                 @relation(fields: [productId], references: [id])
+  Item_Order_Additional Item_Order_Additional[]
+}
+
+model Item_Order_Additional {
+  id           Int        @id @default(autoincrement())
+  itemOrderId  Int
+  ingredientId Int
+  quantity     Float
+  unit         Unit
+  price        Float      @default(0)
+  created_at   DateTime   @default(now())
+  itemOrder    Item_Order @relation(fields: [itemOrderId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
 }
 
 model Product {
@@ -127,18 +140,19 @@ model Warehouse {
 }
 
 model Ingredient {
-  id            Int            @id @default(autoincrement())
-  name          String
-  created_at    DateTime       @default(now())
-  updated_at    DateTime       @updatedAt
-  restaurantId  Int
-  unit          Unit           @default(GRAMAS)
-  warehouseId   Int
-  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id])
-  warehouse     Warehouse      @relation(fields: [warehouseId], references: [id])
-  Item_Product  Item_Product[]
-  Notifications Notification[]
-  Stock         Stock?
+  id                    Int                     @id @default(autoincrement())
+  name                  String
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
+  restaurantId          Int
+  unit                  Unit                    @default(GRAMAS)
+  warehouseId           Int
+  restaurant            Restaurant              @relation(fields: [restaurantId], references: [id])
+  warehouse             Warehouse               @relation(fields: [warehouseId], references: [id])
+  Item_Product          Item_Product[]
+  Notifications         Notification[]
+  Stock                 Stock?
+  Item_Order_Additional Item_Order_Additional[]
 
   @@unique([name, warehouseId])
 }
