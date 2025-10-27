@@ -100,6 +100,7 @@ export const requireDeveloperOrAdmin = async (req, res, next) => {
     next();
 
   } catch (error) {
+    console.error('❌ Erro no middleware de autorização:', error);
     res.status(500).json({
       error: 'Erro interno do servidor'
     });
@@ -332,3 +333,4 @@ export const requireGarcomOrAdmin = async (req, res, next) => {
     });
   }
 };
+

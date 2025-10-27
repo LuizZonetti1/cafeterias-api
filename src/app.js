@@ -15,20 +15,20 @@ const app = express();
 
 // ===== SEGURANÇA: HELMET (HEADERS) =====
 app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }, // Permitir carregar imagens
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Permitir carregar imagens
 }));
 
 // ===== SEGURANÇA: RATE LIMITING =====
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // Máximo 100 requisições por IP
-    message: {
-        error: 'Muitas requisições deste IP',
-        message: 'Tente novamente em 15 minutos',
-        code: 'RATE_LIMIT_EXCEEDED'
-    },
-    standardHeaders: true, // Retornar info de rate limit nos headers
-    legacyHeaders: false, // Desabilitar headers `X-RateLimit-*` legados
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // Máximo 100 requisições por IP
+  message: {
+    error: 'Muitas requisições deste IP',
+    message: 'Tente novamente em 15 minutos',
+    code: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true, // Retornar info de rate limit nos headers
+  legacyHeaders: false, // Desabilitar headers `X-RateLimit-*` legados
 });
 
 // Aplicar rate limiting em todas as rotas

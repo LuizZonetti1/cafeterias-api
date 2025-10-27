@@ -98,7 +98,7 @@ routes.get('/health', async (req, res) => {
   try {
     // Testar conexão com banco de dados
     await prisma.$queryRaw`SELECT 1`;
-    
+
     res.json({
       status: 'healthy',
       message: '✅ API funcionando perfeitamente!',

@@ -17,75 +17,75 @@ export const registerUser = async (req, res) => {
 
     // ===== LÓGICA ESPECIAL PARA DEVELOPER =====
     if (type_user === 'DEVELOPER') {
-      
+
       // Verificar se o código DEVELOPER está correto
       if (code_developer !== process.env.DEVELOPER_SECRET_CODE) {
         return res.status(403).json({
           error: 'Código DEVELOPER inválido. Acesso negado.'
         });
       }
-      
-    } 
+
+    }
     // ===== LÓGICA ESPECIAL PARA ADMIN =====
     else if (type_user === 'ADMIN') {
-      
+
       // Verificar se o código ADMIN está correto
       if (code_admin !== process.env.ADMIN_SECRET_CODE) {
         return res.status(403).json({
           error: 'Código ADMIN inválido. Acesso negado.'
         });
       }
-            
+
       // ADMIN também precisa de restaurante
       if (!restaurantId) {
         return res.status(400).json({
           error: 'Restaurante é obrigatório para ADMIN'
         });
       }
-      
+
       const restaurant = await prisma.restaurant.findUnique({
         where: { id: parseInt(restaurantId) }
       });
-      
+
       if (!restaurant) {
         return res.status(400).json({
           error: 'Restaurante não encontrado'
         });
       }
-      
+
       if (!restaurant.isActive) {
         return res.status(400).json({
           error: 'Restaurante está inativo'
         });
       }
-      
-    } 
+
+    }
     else {
       // ===== LÓGICA PARA USUÁRIOS NORMAIS (KITCHEN, WAITER) =====
-      
+
       // Verificar se restaurante existe
       if (!restaurantId) {
         return res.status(400).json({
           error: 'Restaurante é obrigatório para usuários normais'
         });
       }
-      
+
       const restaurant = await prisma.restaurant.findUnique({
         where: { id: parseInt(restaurantId) }
       });
-      
+
       if (!restaurant) {
         return res.status(400).json({
           error: 'Restaurante não encontrado'
         });
       }
-      
+
       if (!restaurant.isActive) {
         return res.status(400).json({
           error: 'Restaurante está inativo'
         });
       }
-      
+
     }
 
     // Verificar se usuário já existe
@@ -108,7 +108,7 @@ export const registerUser = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      tipo_user: type_user, 
+      tipo_user: type_user,
       status_user: 'ACTIVE',
       // DEVELOPER não tem restaurantId, usuários normais têm
       restaurantId: type_user === 'DEVELOPER' ? null : parseInt(restaurantId)
@@ -136,10 +136,10 @@ export const registerUser = async (req, res) => {
 
     // Gerar JWT token
     const token = jwt.sign(
-      { 
-        userId: newUser.id, 
+      {
+        userId: newUser.id,
         email: newUser.email,
-        tipo_user: newUser.tipo_user 
+        tipo_user: newUser.tipo_user
       },
       JWT_SECRET,
       { expiresIn: '24h' }
@@ -195,7 +195,7 @@ export const loginUser = async (req, res) => {
 
     // Gerar JWT token
     const token = jwt.sign(
-      { 
+      {
         id: user.id,
         name: user.name,
         email: user.email,
