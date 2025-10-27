@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { PrismaClient } from '../generated/prisma/index.js';
 import {
   registerUser,
   loginUser,
@@ -58,6 +59,13 @@ import {
   completeOrder,
   cancelOrder
 } from './app/controllers/orderController.js';
+import {
+  getNotificationsByRestaurant,
+  markNotificationAsRead,
+  markAllAsRead,
+  deleteNotification,
+  deleteAllRead
+} from './app/controllers/notificationController.js';
 import { validateSchema } from './middlewares/validation.js';
 import {
   requireDeveloper,
@@ -83,15 +91,37 @@ import {
 } from './validations/restaurantValidation.js';
 
 const routes = Router();
+const prisma = new PrismaClient();
 
 // ===== ROTA DE HEALTH CHECK =====
-routes.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    message: 'Cafeterias API funcionando!',
-    timestamp: new Date().toISOString(),
-    database: 'Conectado'
-  });
+routes.get('/health', async (req, res) => {
+  try {
+    // Testar conexão com banco de dados
+    await prisma.$queryRaw`SELECT 1`;
+    
+    res.json({
+      status: 'healthy',
+      message: '✅ API funcionando perfeitamente!',
+      timestamp: new Date().toISOString(),
+      uptime: `${Math.floor(process.uptime())} segundos`,
+      database: {
+        status: 'connected',
+        type: 'PostgreSQL (Neon)'
+      },
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    console.error('❌ Health check falhou:', error);
+    res.status(503).json({
+      status: 'unhealthy',
+      message: '❌ Erro de conexão com o banco de dados',
+      timestamp: new Date().toISOString(),
+      database: {
+        status: 'disconnected',
+        error: error.message
+      }
+    });
+  }
 });
 
 // ===== ROTA BÁSICA =====
@@ -253,5 +283,12 @@ routes.get('/orders/:orderId', requireAuth, getOrderById);                      
 routes.patch('/orders/:orderId/status', requireKitchenOrAdmin, updateOrderStatus);                   // Atualizar status (COZINHA/ADMIN)
 routes.post('/orders/:orderId/complete', requireKitchenOrAdmin, completeOrder);                      // Finalizar pedido + CONSUMIR ESTOQUE (COZINHA/ADMIN)
 routes.delete('/orders/:orderId/cancel', requireGarcomOrAdmin, cancelOrder);                         // Cancelar pedido (GARCOM/ADMIN)
+
+// ===== ROTAS DE NOTIFICAÇÕES =====
+routes.get('/notifications/:restaurantId', requireAuth, getNotificationsByRestaurant);               // Listar notificações (?unreadOnly=true)
+routes.put('/notifications/:notificationId/read', requireAuth, markNotificationAsRead);              // Marcar como lida
+routes.put('/notifications/:restaurantId/read-all', requireAuth, markAllAsRead);                     // Marcar todas como lidas
+routes.delete('/notifications/:notificationId', requireAuth, deleteNotification);                    // Deletar notificação
+routes.delete('/notifications/:restaurantId/clear-read', requireAuth, deleteAllRead);                // Deletar todas lidas
 
 export default routes;

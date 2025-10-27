@@ -1,4 +1,5 @@
 import { PrismaClient } from '../../../generated/prisma/index.js';
+import { createNotification } from './notificationController.js';
 
 const prisma = new PrismaClient();
 
@@ -202,6 +203,16 @@ export const addStock = async (req, res) => {
             }
         });
 
+        // ✨ Criar notificação se ainda estiver abaixo do mínimo
+        if (newQuantity < stock.quantity_minimum) {
+            await createNotification({
+                ingredientId: stock.ingredientId,
+                type: 'LOW_STOCK',
+                message: `Estoque baixo: ${stock.ingredient.name} (${newQuantity}${stock.ingredient.unit} - Mínimo: ${stock.quantity_minimum}${stock.ingredient.unit})`,
+                restaurantId: stock.ingredient.restaurantId
+            });
+        }
+
         res.json({
             success: true,
             message: `✅ Estoque atualizado com sucesso!`,
@@ -347,6 +358,14 @@ export const consumeStockByProduct = async (req, res) => {
                     currentStock: newQuantity,
                     minimumStock: stock.quantity_minimum,
                     status: '⚠️ REABASTECIMENTO NECESSÁRIO'
+                });
+
+                // ✨ Criar notificação automática
+                await createNotification({
+                    ingredientId: ingredient.id,
+                    type: 'LOW_STOCK',
+                    message: `Estoque baixo: ${ingredient.name} (${newQuantity}${ingredient.unit} - Mínimo: ${stock.quantity_minimum}${ingredient.unit})`,
+                    restaurantId: ingredient.restaurantId
                 });
             }
 
@@ -497,6 +516,16 @@ export const registerStockLoss = async (req, res) => {
                 responsible_user_id: parseInt(userId)
             }
         });
+
+        // ✨ Criar notificação se ficou abaixo do mínimo
+        if (newQuantity < stock.quantity_minimum) {
+            await createNotification({
+                ingredientId: stock.ingredientId,
+                type: 'LOW_STOCK',
+                message: `Estoque baixo: ${stock.ingredient.name} (${newQuantity}${stock.ingredient.unit} - Mínimo: ${stock.quantity_minimum}${stock.ingredient.unit})`,
+                restaurantId: stock.ingredient.restaurantId
+            });
+        }
 
         res.json({
             success: true,
