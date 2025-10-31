@@ -219,6 +219,8 @@ routes.post('/users/register', validateSchema(registerUserSchema), registerUser)
 routes.post('/users/register-developer', validateSchema(registerDeveloperSchema), registerUser); // Cadastrar DEVELOPER
 routes.post('/users/login', validateSchema(loginUserSchema), loginUser);                       // Login
 
+
+
 // ===== ROTAS DE RESTAURANTES =====
 routes.post('/restaurants/register',
   requireDeveloperToken,
