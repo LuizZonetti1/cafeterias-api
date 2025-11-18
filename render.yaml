@@ -27,8 +27,6 @@ services:
       - key: UPLOAD_STRATEGY
         value: local
       - key: DATABASE_URL
-        sync: false
-        value: postgresql://...
+        value: postgresql://neondb_owner:npg_41GoEKCxzYbQ@ep-round-sky-a4s1pz5c-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
       - key: JWT_SECRET
-        sync: false
-        value: ...
+        value: 6b3e97d7880698a40bcd1915377ebe6eb35d2f32d5987acf37e1e7a3a95cd10dd47644a8bcbd4f5a5db1ba46032dd5305265fd6a528c119a310bfb8c479b33ab
