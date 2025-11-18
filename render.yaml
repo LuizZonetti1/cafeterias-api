@@ -21,7 +21,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: CORS_ORIGIN
-        value: https://cafeterias-app.onrender.com
+        value: https://cafeterias-api.onrender.com
       - key: REQUEST_BODY_LIMIT
         value: 15mb
       - key: UPLOAD_STRATEGY
