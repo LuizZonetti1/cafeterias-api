@@ -28,5 +28,7 @@ services:
         value: local
       - key: DATABASE_URL
         sync: false
+        value: postgresql://...
       - key: JWT_SECRET
         sync: false
+        value: ...
