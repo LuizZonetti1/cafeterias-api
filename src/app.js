@@ -6,12 +6,16 @@ import routes from './routes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { config } from './config/env.js';
 
 // Para ESM modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// Render/Proxies precisam dessa flag para manter IPs e HTTPS corretos
+app.set('trust proxy', 1);
 
 // ===== SEGURANÇA: HELMET (HEADERS) =====
 app.use(helmet({
@@ -34,13 +38,41 @@ const limiter = rateLimit({
 // Aplicar rate limiting em todas as rotas
 app.use(limiter);
 
+const allowedOrigins = config.corsOrigin;
+const isOriginAllowed = origin => {
+  if (!origin) return true; // Requisições do próprio servidor / ferramentas CLI
+  if (allowedOrigins.includes('*')) return true;
+  return allowedOrigins.some(allowed => {
+    if (allowed.startsWith('*.')) {
+      const suffix = allowed.slice(1); // remove *
+      return origin.endsWith(suffix);
+    }
+    return allowed === origin;
+  });
+};
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (isOriginAllowed(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin não permitido: ${origin}`));
+  },
+  credentials: true,
+  exposedHeaders: ['Content-Disposition']
+};
+
 // MIDDLEWARES
-app.use(cors());                    // Permite requisições de outros domínios
-app.use(express.json());            // Permite receber JSON no body
-app.use(express.urlencoded({ extended: true })); // Permite receber dados de formulário
+app.use(cors(corsOptions));         // Permite requisições de outros domínios
+app.use(express.json({ limit: config.requestBodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: config.requestBodyLimit }));
 
 // SERVIR ARQUIVOS ESTÁTICOS (IMAGENS)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+if (config.uploadStrategy === 'local') {
+  app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+} else {
+  console.log('ℹ️ Uploads servidos externamente via', config.uploadBaseUrl || 'bucket configurado');
+}
 
 // ROTAS
 app.use(routes);

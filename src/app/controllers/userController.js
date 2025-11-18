@@ -108,7 +108,7 @@ export const registerUser = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      tipo_user: type_user,
+      type_user: type_user,
       status_user: 'ACTIVE',
       // DEVELOPER não tem restaurantId, usuários normais têm
       restaurantId: type_user === 'DEVELOPER' ? null : parseInt(restaurantId)
@@ -121,7 +121,7 @@ export const registerUser = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        tipo_user: true,
+        type_user: true,
         status_user: true,
         restaurantId: true,
         created_at: true,
@@ -137,9 +137,10 @@ export const registerUser = async (req, res) => {
     // Gerar JWT token
     const token = jwt.sign(
       {
-        userId: newUser.id,
+        id: newUser.id,
         email: newUser.email,
-        tipo_user: newUser.tipo_user
+        type_user: newUser.type_user,
+        restaurantId: newUser.restaurantId
       },
       JWT_SECRET,
       { expiresIn: '24h' }
@@ -199,7 +200,7 @@ export const loginUser = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        tipo_user: user.tipo_user,
+        type_user: user.type_user,
         restaurantId: user.restaurantId
       },
       JWT_SECRET,
@@ -211,7 +212,7 @@ export const loginUser = async (req, res) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      tipo_user: user.tipo_user,
+      type_user: user.type_user,
       restaurantId: user.restaurantId,
       status_user: user.status_user,
       created_at: user.created_at
@@ -223,9 +224,9 @@ export const loginUser = async (req, res) => {
       user: userData,
       token: token,
       permissions: {
-        canCreateIngredient: user.tipo_user === 'ADMIN',
-        canAddStock: ['ADMIN', 'DEVELOPER'].includes(user.tipo_user),
-        canRegisterLoss: ['ADMIN', 'COZINHA'].includes(user.tipo_user),
+        canCreateIngredient: user.type_user === 'ADMIN',
+        canAddStock: ['ADMIN', 'DEVELOPER'].includes(user.type_user),
+        canRegisterLoss: ['ADMIN', 'COZINHA'].includes(user.type_user),
         canViewStock: true
       },
       instructions: {
@@ -250,7 +251,7 @@ export const getAllUsers = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        tipo_user: true,
+        type_user: true,
         status_user: true,
         created_at: true,
         updated_at: true
@@ -285,7 +286,7 @@ export const getUserById = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        tipo_user: true,
+        type_user: true,
         status_user: true,
         created_at: true,
         updated_at: true
@@ -347,14 +348,14 @@ export const updateUser = async (req, res) => {
       data: {
         ...(name && { name }),
         ...(email && { email }),
-        ...(type_user && { tipo_user: type_user }),
+        ...(type_user && { type_user: type_user }),
         ...(status_user && { status_user })
       },
       select: {
         id: true,
         name: true,
         email: true,
-        tipo_user: true,
+        type_user: true,
         status_user: true,
         created_at: true,
         updated_at: true
@@ -403,6 +404,38 @@ export const deleteUser = async (req, res) => {
     console.error('Erro ao deletar usuário:', error);
     res.status(500).json({
       error: 'Erro interno do servidor'
+    });
+  }
+};
+
+export const verifyAdminPassword = async (req, res) => {
+  const { password } = req.body;
+
+  try {
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Senha não informada',
+      });
+    }
+
+    // Comparar com o código secreto do .env
+    if (password === process.env.ADMIN_SECRET_CODE) {
+      return res.status(200).json({
+        success: true,
+        message: 'Acesso autorizado',
+      });
+    } else {
+      return res.status(401).json({
+        success: false,
+        message: 'Senha incorreta',
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao verificar senha admin:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno no servidor',
     });
   }
 };

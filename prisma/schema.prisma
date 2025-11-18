@@ -31,56 +31,41 @@ model Restaurant {
 }
 
 model User {
-  id           Int         @id @default(autoincrement())
-  name         String
-  email        String      @unique
-  tipo_user    TipoUser
-  password     String
-  status_user  status_user
-  created_at   DateTime    @default(now())
-  updated_at   DateTime    @updatedAt
-  restaurantId Int?
-  Orders       Orders[]
-  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+  id             Int              @id @default(autoincrement())
+  name           String
+  email          String           @unique
+  type_user      TipoUser
+  password       String
+  status_user    status_user
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+  restaurantId   Int?
+  Orders         Orders?
+  Stock_Movement Stock_Movement[]
+  restaurant     Restaurant?      @relation(fields: [restaurantId], references: [id])
 }
 
 model Orders {
   id           Int          @id @default(autoincrement())
-  userId       Int
+  userId       Int          @unique
   data_pedido  DateTime     @default(now())
-  status_order status_order @default(PENDING)
+  status_order status_order
   restaurantId Int
-  created_at   DateTime     @default(now())
-  updated_at   DateTime     @default(now())
   Item_Order   Item_Order[]
   restaurant   Restaurant   @relation(fields: [restaurantId], references: [id])
   user         User         @relation(fields: [userId], references: [id])
 }
 
 model Item_Order {
-  id                    Int                     @id @default(autoincrement())
-  orderId               Int
-  productId             Int
-  quantity              Int
-  additional            String?
-  created_at            DateTime                @default(now())
-  updated_at            DateTime                @updatedAt
-  observations          String?
-  order                 Orders                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product               Product                 @relation(fields: [productId], references: [id])
-  Item_Order_Additional Item_Order_Additional[]
-}
-
-model Item_Order_Additional {
-  id           Int        @id @default(autoincrement())
-  itemOrderId  Int
-  ingredientId Int
-  quantity     Float
-  unit         Unit
-  price        Float      @default(0)
-  created_at   DateTime   @default(now())
-  itemOrder    Item_Order @relation(fields: [itemOrderId], references: [id], onDelete: Cascade)
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  productId  Int
+  quantity   Int
+  additional String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  order      Orders   @relation(fields: [orderId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
 }
 
 model Product {
@@ -140,44 +125,44 @@ model Warehouse {
 }
 
 model Ingredient {
-  id                    Int                     @id @default(autoincrement())
-  name                  String
-  created_at            DateTime                @default(now())
-  updated_at            DateTime                @updatedAt
-  restaurantId          Int
-  unit                  Unit                    @default(GRAMAS)
-  warehouseId           Int
-  restaurant            Restaurant              @relation(fields: [restaurantId], references: [id])
-  warehouse             Warehouse               @relation(fields: [warehouseId], references: [id])
-  Item_Product          Item_Product[]
-  Notifications         Notification[]
-  Stock                 Stock?
-  Item_Order_Additional Item_Order_Additional[]
+  id             Int              @id @default(autoincrement())
+  name           String
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+  restaurantId   Int
+  unit           Unit             @default(GRAMAS)
+  warehouseId    Int
+  restaurant     Restaurant       @relation(fields: [restaurantId], references: [id])
+  warehouse      Warehouse        @relation(fields: [warehouseId], references: [id])
+  Item_Product   Item_Product[]
+  Notifications  Notification[]
+  Stock          Stock?
+  Stock_Movement Stock_Movement[]
 
   @@unique([name, warehouseId])
 }
 
 model Stock {
-  id               Int              @id @default(autoincrement())
-  ingredientId     Int              @unique
-  quantity_current Float            @default(0)
-  updated_at       DateTime         @updatedAt
+  id               Int        @id @default(autoincrement())
+  ingredientId     Int        @unique
+  quantity_current Float      @default(0)
+  updated_at       DateTime   @updatedAt
   last_updated_by  Int?
-  quantity_minimum Float            @default(50)
-  ingredient       Ingredient       @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-  Stock_Movement   Stock_Movement[]
+  quantity_minimum Float      @default(50)
+  ingredient       Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
 }
 
 model Stock_Movement {
-  id                  Int          @id @default(autoincrement())
-  created_at          DateTime     @default(now())
-  quantity            Float
-  type                MovementType
-  waste_reason        WasteReason?
-  stockId             Int
-  observation         String?
-  responsible_user_id Int?
-  Stock               Stock        @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  id           Int          @id @default(autoincrement())
+  userId       Int
+  created_at   DateTime     @default(now())
+  ingredientId Int
+  quantity     Float
+  reason       String?
+  type         MovementType
+  waste_reason WasteReason?
+  Ingredient   Ingredient   @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  User         User         @relation(fields: [userId], references: [id])
 }
 
 model Notification {
@@ -194,6 +179,8 @@ model Notification {
 
 enum TipoUser {
   ADMIN
+  WAITER
+  KITCHEN
   DEVELOPER
   GARCOM
   COZINHA
@@ -226,12 +213,15 @@ enum MovementType {
 }
 
 enum WasteReason {
+  VENCIMENTO
+  DETERIORACAO
+  DESPERDICIO
+  OUTROS
   VENCIDO
   DETERIORADO
   CONTAMINADO
   QUEBRA
   DESPERDICIO_PREPARO
-  OUTROS
 }
 
 enum NotificationType {

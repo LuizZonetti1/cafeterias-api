@@ -89,6 +89,7 @@ import {
   updateRestaurantSchema,
   restaurantIdParamSchema
 } from './validations/restaurantValidation.js';
+import { verifyAdminPassword } from './app/controllers/userController.js';
 
 const routes = Router();
 const prisma = new PrismaClient();
@@ -242,6 +243,7 @@ routes.get('/users', requireAdminOrDeveloper, getAllUsers);             // Lista
 routes.get('/users/:id', requireAuth, validateSchema(idParamSchema, 'params'), getUserById);         // Buscar por ID (qualquer autenticado)
 routes.put('/users/:id', requireAdminOrDeveloper, validateSchema(idParamSchema, 'params'), validateSchema(updateUserSchema), updateUser);          // Atualizar (ADMIN/DEVELOPER)
 routes.delete('/users/:id', requireAdminOrDeveloper, validateSchema(idParamSchema, 'params'), deleteUser);       // Deletar (ADMIN/DEVELOPER)
+routes.post('/users/verify-admin-password', verifyAdminPassword);
 
 // ===== ROTAS DE ESTOQUES/ARMAZÉNS =====
 routes.post('/warehouses/create', requireAdmin, createWarehouse);                                     // Criar estoque (APENAS ADMIN)

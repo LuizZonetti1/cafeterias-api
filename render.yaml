@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: cafeterias-api
+    env: node
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: .
+    buildCommand: |
+      corepack enable
+      pnpm install --frozen-lockfile
+      pnpm db:generate
+    startCommand: pnpm start
+    autoDeploy: true
+    healthCheckPath: /health
+    numInstances: 1
+    runtime: node
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGIN
+        value: https://cafeterias-app.onrender.com
+      - key: REQUEST_BODY_LIMIT
+        value: 15mb
+      - key: UPLOAD_STRATEGY
+        value: local
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false

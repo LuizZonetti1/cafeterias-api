@@ -1,6 +1,6 @@
 -- Migrar dados de TipoUser
-UPDATE "User" SET tipo_user = 'GARCOM' WHERE tipo_user = 'WAITER';
-UPDATE "User" SET tipo_user = 'COZINHA' WHERE tipo_user = 'KITCHEN';
+UPDATE "User" SET type_user = 'GARCOM' WHERE type_user = 'WAITER';
+UPDATE "User" SET type_user = 'COZINHA' WHERE type_user = 'KITCHEN';
 
 -- Migrar dados de WasteReason
 UPDATE "Stock_Movement" SET waste_reason = 'VENCIDO' WHERE waste_reason = 'VENCIMENTO';

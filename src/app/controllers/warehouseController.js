@@ -49,7 +49,7 @@ export const getWarehousesByRestaurant = async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // DEVELOPER pode ver qualquer restaurante, outros só o próprio
     if (userRole !== 'DEVELOPER' && parseInt(restaurantId) !== userRestaurantId) {
@@ -91,7 +91,7 @@ export const getWarehouseById = async (req, res) => {
   try {
     const { warehouseId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     const warehouse = await prisma.warehouse.findUnique({
       where: { id: parseInt(warehouseId) },

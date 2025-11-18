@@ -31,7 +31,7 @@ class User {
     primary_key(id: Int)
     unique(email: String)
     name: String
-    tipo_user: TipoUser
+    type_user: TipoUser
     password: String
     status_user: status_user
     foreign_key(restaurantId: Int?)

@@ -2,6 +2,7 @@ import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { config } from '../config/env.js';
 
 // Para ESM modules
 const __filename = fileURLToPath(import.meta.url);
@@ -119,7 +120,10 @@ export const handleUploadError = (error, req, res, next) => {
 export const generateImageUrl = (req, filename) => {
   if (!filename) return null;
 
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const baseUrl = config.uploadStrategy !== 'local' && config.uploadBaseUrl
+    ? config.uploadBaseUrl.replace(/\/$/, '')
+    : config.renderExternalUrl || `${req.protocol}://${req.get('host')}`;
+
   return `${baseUrl}/uploads/${filename}`;
 };
 

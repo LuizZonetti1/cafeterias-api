@@ -35,9 +35,9 @@ export function initializeSocket(httpServer) {
     try {
       const decoded = jwt.verify(token, config.jwtSecret);
 
-      socket.userId = decoded.userId;
+      socket.userId = decoded.id;
       socket.restaurantId = decoded.restaurantId;
-      socket.tipoUser = decoded.tipo_user;
+      socket.tipoUser = decoded.type_user;
       socket.userName = decoded.name;
 
       next();

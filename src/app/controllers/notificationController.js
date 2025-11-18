@@ -61,7 +61,7 @@ export const getNotificationsByRestaurant = async (req, res) => {
     const { restaurantId } = req.params;
     const { unreadOnly } = req.query; // ?unreadOnly=true
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // DEVELOPER pode ver de qualquer restaurante
     if (userRole !== 'DEVELOPER') {
@@ -144,7 +144,7 @@ export const markNotificationAsRead = async (req, res) => {
   try {
     const { notificationId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     const notification = await prisma.notification.findUnique({
       where: { id: parseInt(notificationId) }
@@ -192,7 +192,7 @@ export const markAllAsRead = async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // DEVELOPER pode marcar de qualquer restaurante
     if (userRole !== 'DEVELOPER') {
@@ -233,7 +233,7 @@ export const deleteNotification = async (req, res) => {
   try {
     const { notificationId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     const notification = await prisma.notification.findUnique({
       where: { id: parseInt(notificationId) }
@@ -275,7 +275,7 @@ export const deleteAllRead = async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // DEVELOPER pode deletar de qualquer restaurante
     if (userRole !== 'DEVELOPER') {

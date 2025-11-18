@@ -669,9 +669,9 @@ io.use((socket, next) => {
 
   try {
     const decoded = jwt.verify(token, config.jwtSecret)
-    socket.userId = decoded.userId
+    socket.userId = decoded.id
     socket.restaurantId = decoded.restaurantId
-    socket.tipoUser = decoded.tipo_user
+    socket.tipoUser = decoded.type_user
     next()
   } catch (err) {
     next(new Error('Invalid token'))

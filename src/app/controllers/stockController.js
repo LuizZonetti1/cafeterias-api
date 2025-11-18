@@ -71,7 +71,7 @@ export const setMinimumStock = async (req, res) => {
     const { quantity_minimum } = req.body;
     const userId = req.user?.id;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // Verificar se estoque existe
     const stock = await prisma.stock.findUnique({
@@ -130,7 +130,7 @@ export const addStock = async (req, res) => {
     const { quantity, reason, supplier, expirationDate, costPerUnit } = req.body;
     const userId = req.user?.id;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // ===== VERIFICAR PERMISSÃO =====
     if (!['ADMIN', 'DEVELOPER'].includes(userRole)) {
@@ -428,7 +428,7 @@ export const registerStockLoss = async (req, res) => {
     const { quantity, observation, waste_reason } = req.body;
     const userId = req.user?.id;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // ===== VERIFICAR PERMISSÃO - APENAS COZINHA E ADMINISTRADOR =====
     if (!['COZINHA', 'ADMIN'].includes(userRole)) {
@@ -569,7 +569,7 @@ export const getRestaurantStockOverview = async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // DEVELOPER pode ver qualquer restaurante, outros só o próprio
     if (userRole !== 'DEVELOPER' && parseInt(restaurantId) !== userRestaurantId) {

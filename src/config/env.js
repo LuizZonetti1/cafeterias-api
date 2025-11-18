@@ -1,11 +1,29 @@
 // ===== VALIDAÇÃO DE VARIÁVEIS DE AMBIENTE =====
 // Valida se todas as variáveis obrigatórias estão configuradas antes de iniciar o servidor
 
+const coercePort = () => {
+  if (!process.env.PORT && process.env.RENDER_INTERNAL_PORT) {
+    process.env.PORT = process.env.RENDER_INTERNAL_PORT;
+  }
+
+  if (!process.env.PORT) {
+    process.env.PORT = '3333';
+  }
+};
+
+const parseListEnv = (value = '') => value
+  .split(',')
+  .map(item => item.trim())
+  .filter(Boolean);
+
+const maskValue = (value = '') => '*'.repeat(Math.min(value.length, 8)) || 'não definido';
+
 export function validateEnv() {
+  coercePort();
+
   const required = [
     'DATABASE_URL',
-    'JWT_SECRET',
-    'PORT'
+    'JWT_SECRET'
   ];
 
   const missing = required.filter(key => !process.env[key]);
@@ -27,17 +45,24 @@ export function validateEnv() {
 
   console.log('✅ Variáveis de ambiente validadas com sucesso!');
   console.log(`   - DATABASE_URL: ${process.env.DATABASE_URL.substring(0, 30)}...`);
-  console.log(`   - JWT_SECRET: ${process.env.JWT_SECRET ? '*'.repeat(process.env.JWT_SECRET.length) : 'não definido'}`);
+  console.log(`   - JWT_SECRET: ${maskValue(process.env.JWT_SECRET)}`);
   console.log(`   - PORT: ${process.env.PORT}`);
 }
 
 // ===== CONFIGURAÇÕES DO AMBIENTE =====
 export const config = {
-  port: process.env.PORT || 3333,
+  port: Number(process.env.PORT || 3333),
+  host: process.env.HOST || '0.0.0.0',
   jwtSecret: process.env.JWT_SECRET,
   databaseUrl: process.env.DATABASE_URL,
   nodeEnv: process.env.NODE_ENV || 'development',
   isDevelopment: process.env.NODE_ENV === 'development',
-  isProduction: process.env.NODE_ENV === 'production'
+  isProduction: process.env.NODE_ENV === 'production',
+  corsOrigin: parseListEnv(process.env.CORS_ORIGIN || '*'),
+  requestBodyLimit: process.env.REQUEST_BODY_LIMIT || '10mb',
+  uploadStrategy: process.env.UPLOAD_STRATEGY || 'local',
+  uploadBaseUrl: process.env.UPLOAD_BASE_URL || '',
+  renderExternalUrl: process.env.RENDER_EXTERNAL_URL || process.env.RENDER_EXTERNAL_HOSTNAME || '',
+  logLevel: process.env.LOG_LEVEL || 'info'
 };
 

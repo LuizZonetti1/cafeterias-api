@@ -9,7 +9,7 @@ export const createOrder = async (req, res) => {
     const { items } = req.body; // items = [{ productId, quantity, additional, observations, additionalIngredients: [{ingredientId, quantity, unit, price}] }]
     const garcomId = req.user?.id;
     const garcomRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // DEVELOPER não pode criar pedidos (não tem restaurante)
     if (userRole === 'DEVELOPER') {
@@ -201,7 +201,7 @@ export const createOrder = async (req, res) => {
           }
         },
         user: {
-          select: { id: true, name: true, tipo_user: true }
+          select: { id: true, name: true, type_user: true }
         },
         restaurant: {
           select: { id: true, name: true }
@@ -233,7 +233,7 @@ export const createOrder = async (req, res) => {
         restaurant: order.restaurant.name,
         createdBy: {
           name: order.user.name,
-          role: order.user.tipo_user
+          role: order.user.type_user
         },
         items: order.Item_Order.map(item => ({
           product: item.product.name,
@@ -270,7 +270,7 @@ export const listOrders = async (req, res) => {
   try {
     const { status } = req.query; // Filtro opcional por status
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // DEVELOPER não pode listar pedidos (não tem restaurante)
     if (userRole === 'DEVELOPER') {
@@ -308,7 +308,7 @@ export const listOrders = async (req, res) => {
           }
         },
         user: {
-          select: { name: true, tipo_user: true }
+          select: { name: true, type_user: true }
         }
       },
       orderBy: { created_at: 'desc' }
@@ -326,7 +326,7 @@ export const listOrders = async (req, res) => {
         id: order.id,
         status: order.status_order,
         createdBy: order.user.name,
-        role: order.user.tipo_user,
+        role: order.user.type_user,
         itemsCount: order.Item_Order.length,
         totalAmount,
         createdAt: order.created_at,
@@ -367,7 +367,7 @@ export const getOrderById = async (req, res) => {
   try {
     const { orderId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     const order = await prisma.orders.findUnique({
       where: { id: parseInt(orderId) },
@@ -396,7 +396,7 @@ export const getOrderById = async (req, res) => {
           }
         },
         user: {
-          select: { id: true, name: true, tipo_user: true }
+          select: { id: true, name: true, type_user: true }
         },
         restaurant: {
           select: { id: true, name: true }
@@ -434,7 +434,7 @@ export const getOrderById = async (req, res) => {
         createdBy: {
           id: order.user.id,
           name: order.user.name,
-          role: order.user.tipo_user
+          role: order.user.type_user
         },
         items: order.Item_Order.map(item => {
           const additionalsTotal = item.Item_Order_Additional.reduce((sum, add) => sum + add.price, 0);
@@ -485,7 +485,7 @@ export const updateOrderStatus = async (req, res) => {
     const { orderId } = req.params;
     const { status } = req.body; // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
     const userId = req.user?.id;
 
     // Validar status
@@ -564,7 +564,7 @@ export const completeOrder = async (req, res) => {
     const { orderId } = req.params;
     const { wastePercentage = 0 } = req.body; // % de desperdício opcional
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
     const userId = req.user?.id;
 
     if (wastePercentage < 0 || wastePercentage > 100) {
@@ -868,7 +868,7 @@ export const cancelOrder = async (req, res) => {
     const { orderId } = req.params;
     const { reason } = req.body; // Motivo do cancelamento
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     const order = await prisma.orders.findUnique({
       where: { id: parseInt(orderId) },

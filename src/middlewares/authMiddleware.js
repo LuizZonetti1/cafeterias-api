@@ -27,7 +27,7 @@ export const requireDeveloperToken = async (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     // Verificar se é DEVELOPER
-    if (decoded.tipo_user !== 'DEVELOPER') {
+    if (decoded.type_user !== 'DEVELOPER') {
       return res.status(403).json({
         error: 'Acesso negado: apenas DEVELOPER pode realizar esta operação.'
       });
@@ -66,7 +66,7 @@ export const requireDeveloper = async (req, res, next) => {
 
     // Temporariamente aceitar qualquer requisição para testes
     if (process.env.NODE_ENV === 'development' || !req.headers['x-user-type']) {
-      req.user = { tipo_user: 'DEVELOPER' }; // Simular usuário DEVELOPER
+      req.user = { type_user: 'DEVELOPER' }; // Simular usuário DEVELOPER
       return next();
     }
 
@@ -132,7 +132,7 @@ export const requireAuth = async (req, res, next) => {
     // Adicionar dados do usuário na request
     req.user = decoded;
     req.body.userId = decoded.id;
-    req.body.userRole = decoded.tipo_user;
+    req.body.userRole = decoded.type_user;
 
     next();
 
@@ -178,11 +178,11 @@ export const requireAdmin = (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     // Verificar se é ADMIN
-    if (decoded.tipo_user !== 'ADMIN') {
+    if (decoded.type_user !== 'ADMIN') {
       return res.status(403).json({
         error: 'Acesso negado: apenas ADMINISTRADOR pode realizar esta operação.',
         requiredRole: 'ADMIN',
-        userRole: decoded.tipo_user
+        userRole: decoded.type_user
       });
     }
 
@@ -225,17 +225,17 @@ export const requireAdminOrDeveloper = async (req, res, next) => {
     const token = authHeader.replace('Bearer ', '');
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    if (!['ADMIN', 'DEVELOPER'].includes(decoded.tipo_user)) {
+    if (!['ADMIN', 'DEVELOPER'].includes(decoded.type_user)) {
       return res.status(403).json({
         error: 'Acesso negado: apenas ADMINISTRADOR ou DEVELOPER podem realizar esta operação.',
         requiredRoles: ['ADMIN', 'DEVELOPER'],
-        userRole: decoded.tipo_user
+        userRole: decoded.type_user
       });
     }
 
     req.user = decoded;
     req.body.userId = decoded.id;
-    req.body.userRole = decoded.tipo_user;
+    req.body.userRole = decoded.type_user;
 
     next();
 
@@ -266,17 +266,17 @@ export const requireKitchenOrAdmin = async (req, res, next) => {
     const token = authHeader.replace('Bearer ', '');
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    if (!['COZINHA', 'ADMIN'].includes(decoded.tipo_user)) {
+    if (!['COZINHA', 'ADMIN'].includes(decoded.type_user)) {
       return res.status(403).json({
         error: 'Acesso negado: apenas COZINHA ou ADMINISTRADOR podem realizar esta operação.',
         requiredRoles: ['COZINHA', 'ADMIN'],
-        userRole: decoded.tipo_user
+        userRole: decoded.type_user
       });
     }
 
     req.user = decoded;
     req.body.userId = decoded.id;
-    req.body.userRole = decoded.tipo_user;
+    req.body.userRole = decoded.type_user;
 
     next();
 
@@ -307,17 +307,17 @@ export const requireGarcomOrAdmin = async (req, res, next) => {
     const token = authHeader.replace('Bearer ', '');
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    if (!['GARCOM', 'ADMIN'].includes(decoded.tipo_user)) {
+    if (!['GARCOM', 'ADMIN'].includes(decoded.type_user)) {
       return res.status(403).json({
         error: 'Acesso negado: apenas GARÇOM ou ADMINISTRADOR podem realizar esta operação.',
         requiredRoles: ['GARCOM', 'ADMIN'],
-        userRole: decoded.tipo_user
+        userRole: decoded.type_user
       });
     }
 
     req.user = decoded;
     req.body.userId = decoded.id;
-    req.body.userRole = decoded.tipo_user;
+    req.body.userRole = decoded.type_user;
 
     next();
 

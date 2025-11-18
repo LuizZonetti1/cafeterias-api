@@ -102,7 +102,7 @@ export const getIngredientsByRestaurant = async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     if (!restaurantId) {
       return res.status(400).json({

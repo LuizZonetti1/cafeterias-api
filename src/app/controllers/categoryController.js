@@ -7,7 +7,7 @@ export const createCategory = async (req, res) => {
   try {
     const { name } = req.body;
     const adminRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // Validar campo obrigatório
     if (!name) {
@@ -91,7 +91,7 @@ export const getCategoriesByRestaurant = async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // DEVELOPER pode ver qualquer restaurante, outros só o próprio
     if (userRole !== 'DEVELOPER' && parseInt(restaurantId) !== userRestaurantId) {
@@ -139,7 +139,7 @@ export const getCategoryById = async (req, res) => {
   try {
     const { categoryId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     const category = await prisma.category.findUnique({
       where: { id: parseInt(categoryId) },
@@ -200,7 +200,7 @@ export const updateCategory = async (req, res) => {
     const { categoryId } = req.params;
     const { name } = req.body;
     const adminRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // DEVELOPER não pode atualizar categorias
     if (userRole === 'DEVELOPER') {
@@ -297,7 +297,7 @@ export const deleteCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
     const adminRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // DEVELOPER não pode deletar categorias
     if (userRole === 'DEVELOPER') {

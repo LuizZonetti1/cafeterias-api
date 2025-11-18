@@ -143,7 +143,7 @@ export const getRestaurantById = async (req, res) => {
             id: true,
             name: true,
             email: true,
-            tipo_user: true,
+            type_user: true,
             status_user: true
           }
         },

@@ -14,6 +14,7 @@ try {
 
 // ===== CRIAR SERVIDOR HTTP =====
 const PORT = config.port;
+const HOST = config.host;
 const httpServer = createServer(app);
 
 // ===== INICIALIZAR WEBSOCKET =====
@@ -23,11 +24,25 @@ const io = initializeSocket(httpServer);
 app.set('io', io);
 
 // ===== INICIAR SERVIDOR =====
-httpServer.listen(PORT, () => {
+const inferredPublicUrl = config.renderExternalUrl || `http://localhost:${PORT}`;
+const inferredWsUrl = inferredPublicUrl.replace(/^http/, 'ws');
+
+httpServer.listen(PORT, HOST, () => {
   console.log('\n🚀 ========================================');
-  console.log(`   SERVIDOR RODANDO NA PORTA ${PORT}`);
+  console.log(`   SERVIDOR RODANDO EM ${HOST}:${PORT}`);
   console.log(`   Ambiente: ${config.nodeEnv}`);
-  console.log(`   HTTP: http://localhost:${PORT}`);
-  console.log(`   WebSocket: ws://localhost:${PORT}`);
+  console.log(`   HTTP: ${inferredPublicUrl}`);
+  console.log(`   WebSocket: ${inferredWsUrl}`);
   console.log('========================================\n');
 });
+
+const gracefulShutdown = signal => {
+  console.log(`\n⚠️ Recebido ${signal}. Encerrando servidor com segurança...`);
+  httpServer.close(() => {
+    console.log('Servidor HTTP finalizado. Até mais!');
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

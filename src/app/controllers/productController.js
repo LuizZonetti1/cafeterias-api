@@ -7,7 +7,7 @@ export const createProduct = async (req, res) => {
   try {
     const { name, description, price, categoryId, recipe } = req.body;
     const adminRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     // Validar campos obrigatórios
     if (!name || !price || !categoryId) {
@@ -160,7 +160,7 @@ export const getProductsByRestaurant = async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     if (!restaurantId) {
       return res.status(400).json({
@@ -221,7 +221,7 @@ export const getProductById = async (req, res) => {
   try {
     const { productId } = req.params;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     const product = await prisma.product.findUnique({
       where: { id: parseInt(productId) },
@@ -563,7 +563,7 @@ export const produceProduct = async (req, res) => {
     const { quantity, wastePercentage = 0 } = req.body;
     const userId = req.user?.id;
     const userRestaurantId = req.user?.restaurantId;
-    const userRole = req.user?.tipo_user;
+    const userRole = req.user?.type_user;
 
     if (!quantity || quantity <= 0) {
       return res.status(400).json({
